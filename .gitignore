@@ -1,0 +1,77 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib60/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- Secrets / local config ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- Test / coverage / type-check caches ----
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.hypothesis/
+
+# ---- Project data caches (large nflverse downloads) ----
+data/
+!tests/fixtures/
+.cache/
+*.parquet
+!tests/fixtures/**/*.parquet
+*.csv
+!tests/fixtures/**/*.csv
+*.feather
+*.duckdb
+*.sqlite3
+
+# ---- Notebooks ----
+.ipynb_checkpoints/
+
+# ---- Editors / OS ----
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- VS Code ----
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
