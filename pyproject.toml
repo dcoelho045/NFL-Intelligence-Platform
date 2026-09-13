@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nfl-platform"
+version = "0.1.0"
+description = "Evidence-backed NFL intelligence platform: data foundation and deterministic analytics."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "Daniel Coelho" }]
+keywords = ["nfl", "analytics", "nflverse", "polars"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+# Every dependency below is justified:
+#   nflreadpy         - the nflverse data source this milestone is built around
+#   polars            - dataframe engine nflreadpy returns natively; no pandas bridge needed
+#   pydantic-settings - typed, env-driven configuration without secrets in source
+dependencies = [
+    "nflreadpy>=0.1.5",
+    "polars>=1.0.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[project.urls]
+Repository = "https://github.com/dcoelho045/NFL-Intelligence-Platform"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nfl_platform"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# Integration tests hit the network; keep the default suite offline and deterministic.
+addopts = "-m 'not integration' --strict-markers"
+markers = [
+    "integration: touches the live nflverse network endpoints (deselected by default)",
+]
+
+[tool.coverage.run]
+source = ["nfl_platform"]
+branch = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "ANN", # flake8-annotations (type hints are a project requirement)
+    "RUF",
+]
+ignore = [
+    "ANN401", # allow Any in deliberately generic pass-through kwargs
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201", "ANN001"]
+
+[tool.ruff.lint.isort]
+# "support" is the shared test-double module in tests/.
+known-first-party = ["nfl_platform", "support"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+warn_unreachable = true
+# nflreadpy does not ship complete stubs.
+[[tool.mypy.overrides]]
+module = ["nflreadpy.*"]
+ignore_missing_imports = true

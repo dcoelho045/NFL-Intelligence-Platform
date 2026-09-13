@@ -105,14 +105,14 @@ Document:
 
 ## Acceptance Criteria
 
-- [ ] Python project runs locally
-- [ ] nflreadpy data can be loaded reproducibly
-- [ ] Core analytics functions work
-- [ ] Unit tests pass
-- [ ] Data model is documented
-- [ ] No LLM functionality exists yet
-- [ ] No secrets are committed
-- [ ] README contains setup instructions
+- [x] Python project runs locally
+- [x] nflreadpy data can be loaded reproducibly
+- [x] Core analytics functions work
+- [x] Unit tests pass
+- [x] Data model is documented
+- [x] No LLM functionality exists yet
+- [x] No secrets are committed
+- [x] README contains setup instructions
 
 ## Copilot Instructions
 
