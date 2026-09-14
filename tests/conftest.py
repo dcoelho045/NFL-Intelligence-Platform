@@ -12,6 +12,7 @@ import pytest
 
 from nfl_platform.config.settings import Settings
 from nfl_platform.data.ingestion import NflDataLoader, ParquetDataSource
+from nfl_platform.services import ServiceContainer
 from support import FIXTURE_SEASON, CountingDataSource
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "nflverse"
@@ -41,6 +42,12 @@ def loader(fixture_source: ParquetDataSource, settings: Settings) -> NflDataLoad
         settings=settings,
         current_season=FIXTURE_SEASON,
     )
+
+
+@pytest.fixture
+def services(loader: NflDataLoader, settings: Settings) -> ServiceContainer:
+    """Offline service container sharing the fixture-backed loader."""
+    return ServiceContainer(loader=loader, settings=settings)
 
 
 @pytest.fixture

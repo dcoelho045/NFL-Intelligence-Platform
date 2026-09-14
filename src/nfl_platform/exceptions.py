@@ -77,6 +77,25 @@ class PlayerNotFoundError(NflPlatformError):
         super().__init__(f"Player {player_id!r} was not found in {scope}.")
 
 
+class AmbiguousPlayerError(NflPlatformError):
+    """A player name matches more than one player.
+
+    Carries the candidates rather than guessing. Roughly 7.5% of nflverse
+    players share a display name with someone else, so silently picking the
+    first match would return real statistics for the wrong person -- a failure
+    that looks like a correct answer.
+    """
+
+    def __init__(self, query: str, candidates: tuple[tuple[str, str], ...]) -> None:
+        self.query = query
+        self.candidates = candidates
+        listed = "; ".join(f"{player_id} ({description})" for player_id, description in candidates)
+        super().__init__(
+            f"Player name {query!r} matches {len(candidates)} players: {listed}. "
+            "Narrow the search by position, team, or season."
+        )
+
+
 class TeamNotFoundError(NflPlatformError):
     """A team abbreviation does not appear in the requested dataset scope."""
 

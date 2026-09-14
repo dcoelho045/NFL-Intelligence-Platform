@@ -129,5 +129,7 @@ Every milestone must:
 - handle errors explicitly
 - keep business logic separate from interfaces
 - keep secrets out of source control
+- use object oriented programming 
+- modern coding standards and best practices
 
 Do not begin a later milestone until the current milestone's acceptance criteria are satisfied.

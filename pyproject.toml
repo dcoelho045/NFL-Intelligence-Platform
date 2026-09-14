@@ -17,19 +17,30 @@ classifiers = [
 ]
 
 # Every dependency below is justified:
-#   nflreadpy         - the nflverse data source this milestone is built around
+#   nflreadpy         - the nflverse data source this project is built around
 #   polars            - dataframe engine nflreadpy returns natively; no pandas bridge needed
+#   pydantic          - typed DTOs that double as the JSON Schema for later LLM/MCP tools
 #   pydantic-settings - typed, env-driven configuration without secrets in source
+#   fastapi           - HTTP adapter with OpenAPI generation built in
+#   uvicorn           - ASGI server to run the API locally
+#   tzdata            - Windows ships no system tz database; Polars needs it for
+#                       the timezone-aware columns in the injuries dataset
 dependencies = [
     "nflreadpy>=0.1.5",
     "polars>=1.0.0",
+    "pydantic>=2.7.0",
     "pydantic-settings>=2.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "tzdata>=2024.1; platform_system == 'Windows'",
 ]
 
 [project.optional-dependencies]
+# httpx is required by fastapi.testclient.TestClient.
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
     "ruff>=0.6.0",
     "mypy>=1.11.0",
 ]
@@ -76,6 +87,15 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ANN201", "ANN001"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom puts these calls in argument defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+]
 
 [tool.ruff.lint.isort]
 # "support" is the shared test-double module in tests/.

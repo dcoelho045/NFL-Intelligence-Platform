@@ -76,7 +76,19 @@ def build() -> None:
     # Keep only the players referenced by the slices above, so the crosswalk stays small.
     referenced_ids = set(player_stats.get_column("player_id").drop_nulls().to_list())
     referenced_ids |= set(rosters_weekly.get_column("gsis_id").drop_nulls().to_list())
-    players = loader.load_players().filter(pl.col("gsis_id").is_in(list(referenced_ids)))
+    all_players = loader.load_players()
+    players = all_players.filter(pl.col("gsis_id").is_in(list(referenced_ids)))
+
+    # Also pull in anyone sharing a display name with a referenced player. Roughly
+    # 7.5% of nflverse players have a name collision, and the directory service
+    # must be testable against real ambiguity rather than a synthetic stand-in.
+    referenced_names = set(players.get_column("display_name").drop_nulls().to_list())
+    namesakes = all_players.filter(
+        pl.col("display_name").is_in(list(referenced_names))
+        & ~pl.col("gsis_id").is_in(list(referenced_ids))
+    )
+    players = pl.concat([players, namesakes], how="vertical")
+    print(f"  (+{namesakes.height} namesakes added for ambiguity tests)")
 
     frames: dict[Dataset, pl.DataFrame] = {
         Dataset.SCHEDULES: schedules,
