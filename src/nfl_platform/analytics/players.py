@@ -43,13 +43,16 @@ _RECENT_STATS_COLUMNS: tuple[str, ...] = (
     "passing_yards",
     "passing_tds",
     "passing_interceptions",
+    "passing_epa",
     "carries",
     "rushing_yards",
     "rushing_tds",
+    "rushing_epa",
     "targets",
     "receptions",
     "receiving_yards",
     "receiving_tds",
+    "receiving_epa",
     "target_share",
     "air_yards_share",
     "wopr",
@@ -58,19 +61,27 @@ _RECENT_STATS_COLUMNS: tuple[str, ...] = (
 )
 
 _USAGE_SUM_COLUMNS: tuple[str, ...] = (
+    "completions",
     "attempts",
+    "passing_yards",
+    "passing_tds",
+    "passing_interceptions",
     "carries",
+    "rushing_yards",
+    "rushing_tds",
     "targets",
     "receptions",
     "receiving_yards",
-    "rushing_yards",
-    "passing_yards",
+    "receiving_tds",
 )
 
 _USAGE_MEAN_COLUMNS: tuple[str, ...] = (
     "target_share",
     "air_yards_share",
     "wopr",
+    "passing_epa",
+    "rushing_epa",
+    "receiving_epa",
 )
 
 

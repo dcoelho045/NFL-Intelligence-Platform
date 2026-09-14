@@ -94,13 +94,13 @@ The service must be useful as a normal programmatic API.
 
 ## Acceptance Criteria
 
-- [ ] Stable analytics interfaces exist
-- [ ] API works locally
-- [ ] Request/response schemas are typed
-- [ ] Tests pass
-- [ ] Documentation exists
-- [ ] Raw data access is separated from business logic
-- [ ] No LLM/RAG/MCP functionality yet
+- [x] Stable analytics interfaces exist
+- [x] API works locally
+- [x] Request/response schemas are typed
+- [x] Tests pass
+- [x] Documentation exists
+- [x] Raw data access is separated from business logic
+- [x] No LLM/RAG/MCP functionality yet
 
 ## Copilot Instructions
 
@@ -109,3 +109,4 @@ Inspect Milestone 1 before implementation.
 Do not rewrite working Milestone 1 components unless necessary.
 
 Prioritize clean interfaces because later milestones will expose these capabilities as LLM tools and MCP tools.
+Use Object Oriented Programming and proper coding standards when developing.
