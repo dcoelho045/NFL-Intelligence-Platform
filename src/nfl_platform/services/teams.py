@@ -65,6 +65,8 @@ class TeamAnalyticsService(AnalyticsService):
         summary = summarize_team_stats(frame)
         passing = self.optional_float(self.cell(summary, "avg_passing_yards"))
         rushing = self.optional_float(self.cell(summary, "avg_rushing_yards"))
+        passing_tds = self.optional_float(self.cell(summary, "avg_passing_tds"))
+        rushing_tds = self.optional_float(self.cell(summary, "avg_rushing_tds"))
         turnovers = self._turnovers(frame, prefix="")
 
         return TeamOffenseSummary(
@@ -81,6 +83,10 @@ class TeamAnalyticsService(AnalyticsService):
             avg_passing_yards=passing,
             avg_rushing_yards=rushing,
             avg_total_yards=self._sum_optional(passing, rushing),
+            avg_passing_tds=passing_tds,
+            avg_rushing_tds=rushing_tds,
+            avg_total_tds=self._sum_optional(passing_tds, rushing_tds),
+            avg_turnovers=self._turnovers_per_game(frame, prefix=""),
             avg_passing_epa=self.column_mean(frame, "passing_epa"),
             avg_rushing_epa=self.column_mean(frame, "rushing_epa"),
         )
@@ -107,6 +113,8 @@ class TeamAnalyticsService(AnalyticsService):
         summary = summarize_team_stats(frame, prefix="allowed_")
         passing = self.optional_float(self.cell(summary, "avg_allowed_passing_yards"))
         rushing = self.optional_float(self.cell(summary, "avg_allowed_rushing_yards"))
+        passing_tds = self.optional_float(self.cell(summary, "avg_allowed_passing_tds"))
+        rushing_tds = self.optional_float(self.cell(summary, "avg_allowed_rushing_tds"))
 
         return TeamDefenseSummary(
             team=normalized,
@@ -129,6 +137,13 @@ class TeamAnalyticsService(AnalyticsService):
             avg_allowed_passing_yards=passing,
             avg_allowed_rushing_yards=rushing,
             avg_allowed_total_yards=self._sum_optional(passing, rushing),
+            avg_allowed_passing_tds=self.optional_float(
+                self.cell(summary, "avg_allowed_passing_tds")
+            ),
+            avg_allowed_rushing_tds=self.optional_float(
+                self.cell(summary, "avg_allowed_rushing_tds")
+            ),
+            avg_allowed_total_tds=self._sum_optional(passing_tds, rushing_tds),
             avg_allowed_passing_epa=self.column_mean(frame, "allowed_passing_epa"),
             avg_allowed_rushing_epa=self.column_mean(frame, "allowed_rushing_epa"),
         )
@@ -142,6 +157,15 @@ class TeamAnalyticsService(AnalyticsService):
         ]
         present = [value for value in parts if value is not None]
         return int(sum(present)) if present else None
+
+    def _turnovers_per_game(self, frame: pl.DataFrame, *, prefix: str) -> float | None:
+        """Summing per-column means avoids dividing by a game count that may be zero."""
+        parts = [
+            self.column_mean(frame, f"{prefix}passing_interceptions"),
+            self.column_mean(frame, f"{prefix}rushing_fumbles_lost"),
+            self.column_mean(frame, f"{prefix}receiving_fumbles_lost"),
+        ]
+        return self._sum_optional(*parts)
 
     @staticmethod
     def _sum_optional(*values: float | None) -> float | None:

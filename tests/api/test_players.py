@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 from nfl_platform.api.app import API_PREFIX
 from support import ALLEN_ID, MAHOMES_ID
 
+from .conftest import AMBIGUOUS_NAME
+
 
 class TestPlayerEndpoints:
     def test_profile(self, client: TestClient):
@@ -78,3 +80,16 @@ class TestPlayerEndpoints:
         )
         assert response.status_code == 200
         assert len(response.json()["players"]) == 2
+
+    def test_compare_reports_every_unresolvable_name_at_once(self, client: TestClient):
+        response = client.post(
+            f"{API_PREFIX}/players/compare",
+            json={"player_ids": [AMBIGUOUS_NAME, "Josh Allen"], "seasons": [2024]},
+        )
+        assert response.status_code == 409
+        body = response.json()
+        assert body["error"] == "unresolved_players"
+        assert {item["query"] for item in body["context"]["ambiguous"]} == {
+            AMBIGUOUS_NAME,
+            "Josh Allen",
+        }

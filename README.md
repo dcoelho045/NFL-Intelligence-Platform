@@ -5,8 +5,8 @@ A production-style AI engineering platform that answers NFL questions with
 
 The governing principle: **an LLM is never the source of truth for a number.**
 Statistics come from deterministic functions over
-[nflverse](https://github.com/nflverse) data. The LLM's eventual job is to
-orchestrate tools and synthesise an answer, never to recall a statistic.
+[nflverse](https://github.com/nflverse) data. The LLM's job is to orchestrate
+tools and synthesise an answer, never to recall a statistic.
 
 ## Status
 
@@ -14,11 +14,14 @@ orchestrate tools and synthesise an answer, never to recall a statistic.
 | --------- | ----------------------------------------------------------- | ----------- |
 | 1         | NFL data foundation (`nflreadpy` + Polars)                  | Complete    |
 | 2         | Analytics service layer + FastAPI                           | Complete    |
-| 3         | LLM tool calling                                            | Not started |
+| 3         | LLM tool calling                                            | Complete    |
 | 4-11      | RAG, MCP, ML, agents, evaluation, observability, A2A, CI/CD | Not started |
 
-There is intentionally **no LLM functionality in the repository yet** — enforced
-by [tests/test_architecture.py](tests/test_architecture.py).
+The assistant added in Milestone 3 cannot compute a statistic: the `openai` SDK
+is importable only in `llm/providers/`, the `llm/` package may not import the
+analytics or data layers, and every number in an answer is checked against the
+tool results that produced it — all enforced by
+[tests/architecture/test_layering.py](tests/architecture/test_layering.py).
 
 ## Requirements
 
@@ -63,6 +66,22 @@ as needed; `.env` is git-ignored and must never be committed.
 | `NFL_LOG_LEVEL`               | Logging level                                | `INFO`             |
 | `NFL_LOG_JSON`                | Emit JSON logs instead of text               | `false`            |
 
+The assistant needs one more. Everything above works without it:
+
+| Variable                 | Purpose                                      | Default   |
+| ------------------------ | -------------------------------------------- | --------- |
+| `NFL_LLM_API_KEY`        | OpenAI API key (`OPENAI_API_KEY` also works) | none      |
+| `NFL_LLM_MODEL`          | Chat model                                   | `gpt-4.1` |
+| `NFL_LLM_TEMPERATURE`    | Sampling temperature; blank omits it         | `0.0`     |
+| `NFL_LLM_MAX_ITERATIONS` | Model round-trips per question               | `5`       |
+| `NFL_LLM_MAX_TOOL_CALLS` | Tool executions per question                 | `12`      |
+
+Leave `NFL_LLM_TEMPERATURE` blank for reasoning models such as `o4-mini` and
+`gpt-5-mini`, which reject an explicit temperature.
+
+Without a key the API still starts and every analytics endpoint works; only
+`/api/v1/assistant/*` returns 503.
+
 ## Running the API
 
 ```powershell
@@ -88,10 +107,45 @@ curl "http://127.0.0.1:8000/api/v1/matchups?team_a=KC&team_b=BUF&seasons=2024"
 
 See [docs/api.md](docs/api.md) for the full reference.
 
+## Asking the assistant
+
+```powershell
+# Interactive
+python -m nfl_platform.llm.cli
+
+# One question, showing the tool calls and cost behind the answer
+python -m nfl_platform.llm.cli -q "How has Patrick Mahomes played recently?" --trace
+```
+
+Or over HTTP:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/assistant/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Should I start Mahomes or Allen this week?"}'
+```
+
+The response carries the answer, the `evidence` list of tool calls that produced
+it, and run statistics including tokens, estimated cost, and any number that
+could not be traced back to a tool result.
+
+```python
+from nfl_platform.llm.factory import build_agent
+
+agent = build_agent()
+result = agent.ask("How has the Kansas City defense performed recently?")
+print(result.answer)
+print(result.trace.tools_used, result.trace.estimated_cost_usd)
+```
+
+The assistant selects and calls the same services shown below — it has no other
+source of numbers. See [docs/llm-tools.md](docs/llm-tools.md) for the boundary,
+the 17 tools, and how errors and grounding are handled.
+
 ## Using it from Python
 
 The HTTP API is one adapter. The services behind it are importable directly,
-which is how the LLM and MCP layers will call them:
+which is how the assistant — and the future MCP layer — call them:
 
 ```python
 from nfl_platform.services import ServiceContainer
@@ -121,18 +175,30 @@ Services return typed Pydantic DTOs, not DataFrames.
 ## Testing
 
 ```powershell
-# Offline unit tests (default) - no network access required
+# Offline unit tests (default) - no network access, no API key required
 pytest
 
 # Include the network-dependent integration tests
 pytest -m integration
 
+# Live LLM tests - costs money, needs an API key
+pytest -m llm
+
 # With coverage
 pytest --cov=nfl_platform --cov-report=term-missing
 ```
 
-Integration tests are marked `integration` and deselected by default so the
-default suite is fast, deterministic, and usable in CI without network access.
+Integration and `llm` tests are deselected by default so the default suite is
+fast, deterministic, and usable in CI without network access or a key.
+
+The assistant tests fake **only the model**. Tools execute for real against the
+committed fixtures, so they exercise genuine argument validation, service calls,
+and error mapping rather than mocks of them.
+
+```powershell
+# Measure tool selection, grounding, latency and cost on a fixed question set
+python scripts/llm_benchmark.py --output docs/llm-evaluation.json
+```
 
 ## Code quality
 
@@ -147,6 +213,8 @@ mypy src
 ```text
 src/nfl_platform/
   api/         FastAPI adapter: routers, DI, error mapping
+  llm/         tool-calling assistant: agent loop, tools, prompts, tracing
+    providers/ the only place an LLM SDK may be imported
   services/    OOP analytics services - the stable interface
   schemas/     Pydantic DTOs - the typed contract
   analytics/   deterministic, LLM-free computation
@@ -156,19 +224,23 @@ src/nfl_platform/
   config/      settings (pydantic-settings) and structured logging
   domain.py    identifier and season/week validation
   exceptions.py
-scripts/       fixture generation
+scripts/       fixture generation, LLM benchmark
 tests/
   fixtures/    small committed Parquet fixtures with real nflverse schemas
-docs/          architecture, API reference, data documentation
+docs/          architecture, API reference, LLM boundary, data documentation
 ```
 
-Dependencies flow strictly downward: `api → services → analytics → data`.
-[tests/test_architecture.py](tests/test_architecture.py) enforces this.
+Dependencies flow strictly downward: `api → services → analytics → data`, with
+`llm` a sibling of `api` that also stops at `services`.
+[tests/architecture/test_layering.py](tests/architecture/test_layering.py)
+enforces this.
 
 ## Documentation
 
 - [Architecture](docs/architecture.md) — layering, boundaries, design decisions
 - [API reference](docs/api.md) — endpoints, conventions, error semantics
+- [LLM tool calling](docs/llm-tools.md) — the model/analytics boundary, tools,
+  validation, error handling, and numeric grounding
 - [Data model](docs/data-model.md) — entities, identifiers, grain, relationships
 - [Data sources](docs/data-sources.md) — nflverse datasets, cadence, licensing
 

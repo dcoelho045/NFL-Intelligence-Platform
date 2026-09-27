@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Sequence
 
 import polars as pl
 
 from nfl_platform.data.ingestion.loader import NflDataLoader
 from nfl_platform.domain import looks_like_gsis_id, normalize_player_id, normalize_team
-from nfl_platform.exceptions import AmbiguousPlayerError, PlayerNotFoundError
+from nfl_platform.exceptions import (
+    AmbiguousPlayerError,
+    PlayerNotFoundError,
+    UnresolvedPlayersError,
+)
 from nfl_platform.schemas.player import PlayerCandidate, PlayerProfile, PlayerSearchResult
 from nfl_platform.services.base import AnalyticsService
 
@@ -212,6 +217,28 @@ class PlayerDirectoryService(AnalyticsService):
                 ),
             )
         return result.candidates[0].player_id
+
+    def resolve_all(self, identifiers: Sequence[str]) -> list[str]:
+        """Resolve a batch, reporting every failure rather than only the first.
+
+        Raises:
+            UnresolvedPlayersError: One or more identifiers did not resolve.
+        """
+        resolved: list[str] = []
+        ambiguous: list[tuple[str, tuple[tuple[str, str], ...]]] = []
+        missing: list[str] = []
+
+        for identifier in identifiers:
+            try:
+                resolved.append(self.resolve(identifier))
+            except AmbiguousPlayerError as exc:
+                ambiguous.append((exc.query, exc.candidates))
+            except PlayerNotFoundError:
+                missing.append(identifier)
+
+        if ambiguous or missing:
+            raise UnresolvedPlayersError(tuple(ambiguous), tuple(missing))
+        return resolved
 
     def exists(self, player_id: str) -> bool:
         """Report whether a GSIS id appears in the players table."""

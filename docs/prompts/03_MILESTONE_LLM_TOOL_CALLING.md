@@ -106,14 +106,14 @@ Create tests for:
 
 ## Acceptance Criteria
 
-- [ ] User can ask NFL questions
-- [ ] LLM dynamically calls tools
-- [ ] Tool arguments are validated
-- [ ] Numerical claims come from tools
-- [ ] Tool failures are handled
-- [ ] Prompt is versioned
-- [ ] Tests exist
-- [ ] Basic latency/cost information is recorded
+- [x] User can ask NFL questions
+- [x] LLM dynamically calls tools
+- [x] Tool arguments are validated
+- [x] Numerical claims come from tools
+- [x] Tool failures are handled
+- [x] Prompt is versioned
+- [x] Tests exist
+- [x] Basic latency/cost information is recorded
 
 ## Copilot Instructions
 

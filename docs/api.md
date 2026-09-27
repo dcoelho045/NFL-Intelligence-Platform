@@ -69,6 +69,14 @@ integer, and forcing it into one would silently round.
 EPA appears only in `per_game`. It is a rate statistic, so a season total is
 meaningless and is returned as `null`.
 
+### Every total ships with its average
+
+Publishing `total_allowed_passing_tds` without `avg_allowed_passing_tds` invites
+the caller to divide one by the other. A human doing that is fine; an LLM doing
+it produces a number that looks retrieved but was invented. Team summaries
+therefore expose a per-game counterpart for every total, and a test enforces it
+on the defensive summary.
+
 ### Players can be addressed by id or name
 
 ```text
@@ -159,6 +167,57 @@ than four games are available.
 Team lists are derived from the data, so historical abbreviations such as `OAK`
 stay correct for the seasons in which they were used.
 
+### Assistant — `/api/v1/assistant`
+
+| Method | Path     | Purpose                                  |
+| ------ | -------- | ---------------------------------------- |
+| POST   | `/ask`   | Answer a natural-language NFL question   |
+| GET    | `/tools` | The tool catalogue with argument schemas |
+
+This is the only part of the API that involves a language model, and the only
+part that costs money per request. Everything above works without one.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/assistant/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How has Patrick Mahomes played recently?"}'
+```
+
+```json
+{
+  "answer": "Over his last 3 games Mahomes threw for 812 yards ...",
+  "evidence": [
+    {
+      "tool": "get_player_stats",
+      "arguments": { "player": "00-0033873", "last_n_games": 3 }
+    }
+  ],
+  "stats": {
+    "model": "gpt-4.1",
+    "prompt_version": "analyst_v1",
+    "iterations": 2,
+    "stop_reason": "completed",
+    "duration_ms": 4120.5,
+    "total_tokens": 3908,
+    "estimated_cost_usd": 0.0421,
+    "tools_used": ["get_player_stats"],
+    "ungrounded_numbers": []
+  }
+}
+```
+
+Three fields make the answer checkable rather than merely plausible:
+
+- **`evidence`** is built from the tool calls that actually executed, not written
+  by the model. It cannot cite a tool that never ran.
+- **`stats.ungrounded_numbers`** lists any number in the answer that could not be
+  traced to a tool result. Empty is the expected case; non-empty warrants
+  scrutiny.
+- **`stats.stop_reason`** is `completed`, or names the budget that was hit.
+
+`history` carries earlier turns; the assistant holds no server-side session
+state. See [llm-tools.md](llm-tools.md) for the full boundary.
+
 ## Errors
 
 Every failure returns the same shape:
@@ -182,7 +241,9 @@ Every failure returns the same shape:
 | 422    | `invalid_game_count`       | `last_n_games` not a positive integer                 |
 | 422    | `invalid_request`          | Other argument errors                                 |
 | 500    | `schema_validation_failed` | Upstream nflverse schema drift — our problem          |
+| 502    | `llm_provider_error`       | The model provider failed; `context.retryable`        |
 | 503    | `data_source_unavailable`  | nflverse unreachable — transient, retry               |
+| 503    | `llm_not_configured`       | No provider key; assistant only, analytics unaffected |
 
 ### 409 is the important one
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from nfl_platform.exceptions import TeamNotFoundError
-from nfl_platform.schemas.team import TeamSplit
+from nfl_platform.schemas.team import TeamDefenseSummary, TeamOffenseSummary, TeamSplit
 from nfl_platform.services import ServiceContainer
 
 
@@ -39,6 +39,63 @@ class TestTeamOffenseAndDefense:
         assert offense.avg_total_yards == pytest.approx(
             (offense.avg_passing_yards or 0) + (offense.avg_rushing_yards or 0)
         )
+
+    def test_total_touchdowns_are_supplied_not_left_to_the_caller(self, services: ServiceContainer):
+        """Mirrors avg_total_yards: a combination a caller would otherwise compute."""
+        offense = services.teams.offense("KC", seasons=2024, last_n_games=4)
+        assert offense.avg_total_tds == pytest.approx(
+            (offense.avg_passing_tds or 0) + (offense.avg_rushing_tds or 0)
+        )
+        defense = services.teams.defense("KC", seasons=2024, last_n_games=4)
+        assert defense.avg_allowed_total_tds == pytest.approx(
+            (defense.avg_allowed_passing_tds or 0) + (defense.avg_allowed_rushing_tds or 0)
+        )
+
+    def test_defence_reports_touchdowns_allowed_per_game(self, services: ServiceContainer):
+        """Every total needs its average, or the caller divides and calls it data."""
+        defense = services.teams.defense("KC", seasons=2024, last_n_games=4)
+        assert defense.avg_allowed_passing_tds == pytest.approx(
+            defense.total_allowed_passing_tds / defense.window.games
+        )
+        assert defense.avg_allowed_rushing_tds == pytest.approx(
+            defense.total_allowed_rushing_tds / defense.window.games
+        )
+
+    def test_offence_reports_touchdowns_and_turnovers_per_game(self, services: ServiceContainer):
+        offense = services.teams.offense("KC", seasons=2024, last_n_games=4)
+        assert offense.avg_passing_tds == pytest.approx(
+            offense.total_passing_tds / offense.window.games
+        )
+        assert offense.avg_rushing_tds == pytest.approx(
+            offense.total_rushing_tds / offense.window.games
+        )
+        assert offense.avg_turnovers == pytest.approx(
+            offense.total_turnovers / offense.window.games
+        )
+
+    @pytest.mark.parametrize(
+        ("dto", "total_prefix", "avg_prefix"),
+        [
+            (TeamOffenseSummary, "total_", "avg_"),
+            (TeamDefenseSummary, "total_allowed_", "avg_allowed_"),
+        ],
+        ids=["offense", "defense"],
+    )
+    def test_every_total_has_a_per_game_counterpart(
+        self, dto: type, total_prefix: str, avg_prefix: str
+    ):
+        """Stops the gap reopening when a new total is added later."""
+        totals = {
+            field.removeprefix(total_prefix)
+            for field in dto.model_fields
+            if field.startswith(total_prefix)
+        }
+        averages = {
+            field.removeprefix(avg_prefix)
+            for field in dto.model_fields
+            if field.startswith(avg_prefix)
+        }
+        assert not totals - averages
 
     def test_unknown_team_raises(self, services: ServiceContainer):
         with pytest.raises(TeamNotFoundError):

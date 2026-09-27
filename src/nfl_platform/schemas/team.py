@@ -19,7 +19,12 @@ class TeamSplit(StrEnum):
 
 
 class TeamOffenseSummary(BaseDTO):
-    """What a team's offence produced, per game and in total."""
+    """What a team's offence produced, per game and in total.
+
+    Every total has a per-game counterpart. Publishing a total without its
+    average invites a caller -- an LLM especially -- to divide one by the other
+    and present the result as retrieved data.
+    """
 
     team: str
     window: StatWindow
@@ -32,6 +37,10 @@ class TeamOffenseSummary(BaseDTO):
     avg_passing_yards: float | None = None
     avg_rushing_yards: float | None = None
     avg_total_yards: float | None = None
+    avg_passing_tds: float | None = None
+    avg_rushing_tds: float | None = None
+    avg_total_tds: float | None = None
+    avg_turnovers: float | None = None
     avg_passing_epa: float | None = None
     avg_rushing_epa: float | None = None
 
@@ -41,6 +50,10 @@ class TeamDefenseSummary(BaseDTO):
 
     Fields are prefixed ``allowed_`` so this can never be confused with the
     team's own production. Derived from opponent rows in the team-stats dataset.
+
+    Every total has a per-game counterpart. Publishing a total without its
+    average invites a caller -- an LLM especially -- to divide one by the other
+    and present the result as retrieved data.
     """
 
     team: str
@@ -53,6 +66,9 @@ class TeamDefenseSummary(BaseDTO):
     avg_allowed_passing_yards: float | None = None
     avg_allowed_rushing_yards: float | None = None
     avg_allowed_total_yards: float | None = None
+    avg_allowed_passing_tds: float | None = None
+    avg_allowed_rushing_tds: float | None = None
+    avg_allowed_total_tds: float | None = None
     avg_allowed_passing_epa: float | None = None
     avg_allowed_rushing_epa: float | None = None
 

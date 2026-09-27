@@ -1,9 +1,10 @@
 """Architecture tests.
 
-Two Milestone 2 acceptance criteria -- "raw data access is separated from
-business logic" and "no LLM/RAG/MCP functionality yet" -- are properties of the
-codebase, not of any single function. These tests assert them mechanically so
-they cannot quietly stop being true.
+Several acceptance criteria -- "raw data access is separated from business
+logic", "numerical claims come from tools", "no RAG/MCP/multi-agent
+functionality yet" -- are properties of the codebase, not of any single
+function. These tests assert them mechanically so they cannot quietly stop being
+true.
 
 The checks read import statements from the AST rather than importing modules, so
 a violation is caught even in a branch that never executes.
@@ -12,6 +13,8 @@ a violation is caught even in a branch that never executes.
 from __future__ import annotations
 
 import ast
+import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -21,7 +24,6 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "nfl_platform"
 # Packages that must not appear anywhere in src/ until their milestone arrives.
 FORBIDDEN_PACKAGES = frozenset(
     {
-        "openai",
         "anthropic",
         "langchain",
         "langgraph",
@@ -39,6 +41,12 @@ FORBIDDEN_PACKAGES = frozenset(
         "tensorflow",
     }
 )
+
+# Milestone 3 introduces exactly one LLM SDK, confined to one package. Keeping it
+# quarantined is what lets the rest of src/ stay provably free of model calls and
+# keeps swapping providers a single-directory change.
+PROVIDER_ONLY_PACKAGES = frozenset({"openai"})
+PROVIDER_PACKAGE = "llm/providers"
 
 
 def _module_files(package: str) -> list[Path]:
@@ -74,8 +82,13 @@ class TestDetectorItself:
 
     def test_detects_plain_imports(self, tmp_path: Path):
         sample = tmp_path / "sample.py"
-        sample.write_text("import openai\nimport os\n", encoding="utf-8")
-        assert _imported_roots(sample) & FORBIDDEN_PACKAGES == {"openai"}
+        sample.write_text("import langchain\nimport os\n", encoding="utf-8")
+        assert _imported_roots(sample) & FORBIDDEN_PACKAGES == {"langchain"}
+
+    def test_detects_provider_only_imports(self, tmp_path: Path):
+        sample = tmp_path / "sample.py"
+        sample.write_text("from openai import OpenAI\n", encoding="utf-8")
+        assert _imported_roots(sample) & PROVIDER_ONLY_PACKAGES == {"openai"}
 
     def test_detects_from_imports(self, tmp_path: Path):
         sample = tmp_path / "sample.py"
@@ -100,18 +113,59 @@ class TestDetectorItself:
 
 
 class TestNoPrematureDependencies:
-    """Acceptance criterion: no LLM/RAG/MCP/ML functionality yet."""
+    """Acceptance criterion: no RAG/MCP/multi-agent/ML functionality yet."""
 
     @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
     def test_module_imports_no_forbidden_package(self, path: Path):
         offenders = _imported_roots(path) & FORBIDDEN_PACKAGES
         assert not offenders, f"{path.name} imports {sorted(offenders)}"
 
-    def test_no_llm_dependency_is_declared(self):
-        pyproject = (SRC.parents[1] / "pyproject.toml").read_text(encoding="utf-8")
-        declared = pyproject.split("[tool.")[0].lower()
-        for package in ("openai", "anthropic", "langchain", "langgraph"):
-            assert package not in declared
+    def test_no_future_milestone_dependency_is_declared(self):
+        """Parsed, not grepped: a comment mentioning MCP is not a dependency on it."""
+        pyproject = tomllib.loads((SRC.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+        project = pyproject["project"]
+        declared = list(project.get("dependencies", []))
+        for group in project.get("optional-dependencies", {}).values():
+            declared.extend(group)
+        roots = {re.split(r"[<>=!~\[; ]", entry, maxsplit=1)[0].lower() for entry in declared}
+        assert not roots & FORBIDDEN_PACKAGES
+
+    def test_exactly_one_llm_sdk_is_declared(self):
+        pyproject = tomllib.loads((SRC.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+        roots = {
+            re.split(r"[<>=!~\[; ]", entry, maxsplit=1)[0].lower()
+            for entry in pyproject["project"]["dependencies"]
+        }
+        assert roots & PROVIDER_ONLY_PACKAGES == {"openai"}
+
+
+class TestLlmSdkIsQuarantined:
+    """The model SDK lives in one package; nothing else may call a model."""
+
+    @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
+    def test_only_the_provider_package_imports_an_llm_sdk(self, path: Path):
+        offenders = _imported_roots(path) & PROVIDER_ONLY_PACKAGES
+        if PROVIDER_PACKAGE in path.as_posix():
+            return
+        assert not offenders, (
+            f"{path.relative_to(SRC).as_posix()} imports {sorted(offenders)}; "
+            f"LLM SDK calls belong in {PROVIDER_PACKAGE}/"
+        )
+
+    def test_the_provider_package_actually_exists(self):
+        """Guard against the rule passing vacuously if the package is renamed."""
+        assert (SRC / "llm" / "providers").is_dir()
+
+    @pytest.mark.parametrize("path", _module_files("analytics"), ids=lambda p: p.name)
+    def test_analytics_never_imports_the_llm_layer(self, path: Path):
+        offenders = {m for m in _imported_modules(path) if m.startswith("nfl_platform.llm")}
+        assert not offenders, f"analytics/{path.name} imports the LLM layer"
+
+    @pytest.mark.parametrize("path", _module_files("services"), ids=lambda p: p.name)
+    def test_services_never_import_the_llm_layer(self, path: Path):
+        """The deterministic core must stay usable with no model present."""
+        offenders = {m for m in _imported_modules(path) if m.startswith("nfl_platform.llm")}
+        assert not offenders, f"services/{path.name} imports the LLM layer"
 
 
 class TestLayerDependencyDirection:
@@ -165,6 +219,28 @@ class TestLayerDependencyDirection:
             if module.startswith(("nfl_platform.analytics", "nfl_platform.data"))
         }
         assert not offenders, f"api/{path.name} bypasses the service layer: {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("llm"), ids=lambda p: p.name)
+    def test_llm_does_not_reach_past_the_service_layer(self, path: Path):
+        """Tools must call services, never recompute from frames themselves."""
+        modules = _imported_modules(path)
+        offenders = {
+            module
+            for module in modules
+            if module.startswith(("nfl_platform.analytics", "nfl_platform.data"))
+        }
+        assert not offenders, f"llm/{path.name} bypasses the service layer: {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("llm"), ids=lambda p: p.name)
+    def test_llm_does_not_depend_on_the_api_adapter(self, path: Path):
+        """api -> llm is allowed; llm -> api would make two adapters into a stack."""
+        offenders = {m for m in _imported_modules(path) if m.startswith("nfl_platform.api")}
+        assert not offenders, f"llm/{path.name} imports the API adapter: {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("llm"), ids=lambda p: p.name)
+    def test_llm_never_imports_polars_or_the_web_framework(self, path: Path):
+        offenders = _imported_roots(path) & {"polars", "fastapi", "starlette", "uvicorn"}
+        assert not offenders, f"llm/{path.name} imports {sorted(offenders)}"
 
 
 class TestDataFramesStopAtTheServiceBoundary:
