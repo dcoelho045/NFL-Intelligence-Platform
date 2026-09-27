@@ -249,6 +249,9 @@ class FantasyAnalyticsService(AnalyticsService):
         if len(player_ids) < 2:
             raise ValueError("Comparing players requires at least two player identifiers.")
 
+        # Resolved up front so every unidentifiable name is reported together.
+        resolved_ids = self._directory.resolve_all(player_ids)
+
         results = [
             self.production(
                 player_id,
@@ -257,7 +260,7 @@ class FantasyAnalyticsService(AnalyticsService):
                 scoring=scoring,
                 season_type=season_type,
             )
-            for player_id in player_ids
+            for player_id in resolved_ids
         ]
         game_counts = {result.window.games for result in results}
         note = None

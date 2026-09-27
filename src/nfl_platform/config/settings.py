@@ -10,11 +10,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CacheMode = Literal["filesystem", "memory", "off"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+LlmProvider = Literal["openai"]
 
 
 class Settings(BaseSettings):
@@ -56,10 +57,67 @@ class Settings(BaseSettings):
     log_level: LogLevel = Field(default="INFO")
     log_json: bool = Field(default=False)
 
+    llm_provider: LlmProvider = Field(
+        default="openai",
+        description="LLM vendor. Only OpenAI is implemented.",
+    )
+    llm_model: str = Field(
+        default="gpt-4.1",
+        description="Chat model used by the analyst assistant.",
+    )
+    # Explicit aliases bypass the NFL_ prefix so the SDK's own OPENAI_API_KEY also works.
+    llm_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("NFL_LLM_API_KEY", "OPENAI_API_KEY"),
+        description="Provider API key. Never logged or written to a run trace.",
+    )
+    llm_temperature: float | None = Field(
+        default=0.0,
+        ge=0.0,
+        le=2.0,
+        description=(
+            "Sampling temperature. 0 keeps tool selection as repeatable as possible. "
+            "Leave blank to omit it entirely, which reasoning models such as o4-mini "
+            "and gpt-5-mini require."
+        ),
+    )
+    llm_max_iterations: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum model round-trips per question before the loop stops.",
+    )
+    llm_max_tool_calls: int = Field(
+        default=12,
+        ge=1,
+        le=60,
+        description="Maximum tool executions per question.",
+    )
+    llm_timeout_seconds: int = Field(
+        default=60,
+        gt=0,
+        description="Per-request timeout for provider calls.",
+    )
+
     @field_validator("default_season", mode="before")
     @classmethod
     def _blank_season_is_none(cls, value: object) -> object:
         """Treat ``NFL_DEFAULT_SEASON=`` in a .env file as unset."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("llm_api_key", mode="before")
+    @classmethod
+    def _blank_key_is_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("llm_temperature", mode="before")
+    @classmethod
+    def _blank_temperature_is_none(cls, value: object) -> object:
+        """``NFL_LLM_TEMPERATURE=`` means "do not send temperature at all"."""
         if isinstance(value, str) and not value.strip():
             return None
         return value

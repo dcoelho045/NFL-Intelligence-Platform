@@ -25,6 +25,8 @@ classifiers = [
 #   uvicorn           - ASGI server to run the API locally
 #   tzdata            - Windows ships no system tz database; Polars needs it for
 #                       the timezone-aware columns in the injuries dataset
+#   openai            - the only LLM SDK; the tool-calling loop is written directly
+#                       against it rather than through an orchestration framework
 dependencies = [
     "nflreadpy>=0.1.5",
     "polars>=1.0.0",
@@ -33,6 +35,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "tzdata>=2024.1; platform_system == 'Windows'",
+    "openai>=1.40.0",
 ]
 
 [project.optional-dependencies]
@@ -54,10 +57,11 @@ packages = ["src/nfl_platform"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-# Integration tests hit the network; keep the default suite offline and deterministic.
-addopts = "-m 'not integration' --strict-markers"
+# Integration and llm tests hit the network; keep the default suite offline and deterministic.
+addopts = "-m 'not integration and not llm' --strict-markers"
 markers = [
     "integration: touches the live nflverse network endpoints (deselected by default)",
+    "llm: calls a live LLM provider and costs money (deselected by default)",
 ]
 
 [tool.coverage.run]

@@ -9,7 +9,7 @@ graph TD
     subgraph adapters["Adapters - interchangeable"]
         API["api/<br/>FastAPI routers"]
         MCP["MCP server<br/>(Milestone 5)"]
-        TOOLS["LLM tools<br/>(Milestone 3)"]
+        TOOLS["llm/<br/>tool-calling assistant"]
     end
     subgraph contract["Stable contract"]
         SCHEMAS["schemas/<br/>Pydantic DTOs"]
@@ -22,24 +22,31 @@ graph TD
     end
 
     API --> SERVICES
+    API --> TOOLS
     MCP -.-> SERVICES
-    TOOLS -.-> SERVICES
+    TOOLS --> SERVICES
     SERVICES --> SCHEMAS
     SERVICES --> ANALYTICS
     ANALYTICS --> DATA
     DATA --> DOMAIN
 ```
 
-Dependencies flow strictly downward. [tests/test_architecture.py](../tests/test_architecture.py)
+Dependencies flow strictly downward.
+[tests/architecture/test_layering.py](../tests/architecture/test_layering.py)
 asserts this mechanically, so the rule cannot quietly stop being true.
 
 | Layer        | Responsibility                     | May import                               |
 | ------------ | ---------------------------------- | ---------------------------------------- |
-| `api/`       | HTTP mapping and serialisation     | `services`, `schemas`                    |
+| `api/`       | HTTP mapping and serialisation     | `services`, `schemas`, `llm`             |
+| `llm/`       | Tool selection and synthesis       | `services`, `schemas`, `domain`          |
 | `services/`  | Compose, validate, convert to DTOs | `analytics`, `data`, `schemas`, `domain` |
 | `schemas/`   | Typed contract                     | `domain` only                            |
 | `analytics/` | Deterministic computation          | `data`, `domain`                         |
 | `data/`      | Load and validate nflverse data    | `domain`, `config`                       |
+
+`api/ -> llm/` is allowed; `llm/ -> api/` is not. The assistant is reachable
+_through_ HTTP but does not depend on HTTP, so the CLI and the benchmark script
+use it without a web server.
 
 ## The three boundaries that matter
 
@@ -59,18 +66,29 @@ require.
 ### 2. The LLM is never the source of a number
 
 Every value the API returns is computed by a deterministic function in
-`analytics/` from nflverse data. No LLM SDK is imported anywhere in `src/`, and a
-test enforces that.
+`analytics/` from nflverse data.
 
-When the assistant arrives in Milestone 3, it will orchestrate these services and
-quote their output. It will never produce a statistic itself.
+Milestone 3 added an assistant without weakening that. The model orchestrates
+services and quotes their output; it never produces a statistic itself. The
+enforcement is structural rather than aspirational:
+
+- `openai` may be imported **only** in `llm/providers/`, asserted by a test.
+- `llm/` may not import `analytics/` or `data/`, so a tool cannot compute.
+- No calculator or code-execution tool exists, so there is no numeric ability to
+  reach for.
+- Every number in an answer is matched against the tool results that produced
+  it; misses are recorded on the run trace.
+
+See [llm-tools.md](llm-tools.md) for the full boundary.
 
 ### 3. Adapters are siblings, not a stack
 
-FastAPI, the future MCP server, and the future LLM tool layer are three
-**peers**, all calling `ServiceContainer` in-process. None of them calls another.
+FastAPI, the assistant, and the future MCP server are **peers**, all calling
+`ServiceContainer` in-process. The HTTP layer exposes the assistant, but the
+assistant never calls HTTP.
 
-The alternative — having MCP call our own HTTP API — was rejected deliberately:
+The alternative — having MCP or the assistant call our own HTTP API — was
+rejected deliberately:
 
 - MCP servers usually run as a stdio subprocess launched by the client. Requiring
   a separate web server to be running would make the MCP server non-functional
@@ -179,14 +197,15 @@ One container per process means the memo stays warm across requests.
 
 ## What is deliberately absent
 
-| Not present    | Why                                                 | Arrives in    |
-| -------------- | --------------------------------------------------- | ------------- |
-| LLM SDKs       | Milestone 2 must be useful without one              | 3             |
-| Vector store   | No unstructured text yet                            | 4             |
-| MCP server     | Needs a stable service layer first — this one       | 5             |
-| ML models      | Needs a baseline and evaluation harness             | 6             |
-| PostgreSQL     | Nothing yet needs transactions or concurrent writes | when required |
-| Authentication | Read-only public data on localhost                  | 11            |
+| Not present     | Why                                                 | Arrives in    |
+| --------------- | --------------------------------------------------- | ------------- |
+| Vector store    | No unstructured text yet                            | 4             |
+| MCP server      | Needs a stable service layer first — this one       | 5             |
+| ML models       | Needs a baseline and evaluation harness             | 6             |
+| Agent framework | One loop with no branching does not need one        | 7             |
+| PostgreSQL      | Nothing yet needs transactions or concurrent writes | when required |
+| Authentication  | Read-only public data on localhost                  | 11            |
 
 The absence of authentication is a decision, not an oversight: the API binds to
 localhost and exposes only public data. Anything internet-facing needs it first.
+That now includes the assistant endpoint, which spends money per request.

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from nfl_platform.exceptions import AmbiguousPlayerError, InvalidWeekError, PlayerNotFoundError
+from nfl_platform.exceptions import (
+    AmbiguousPlayerError,
+    InvalidWeekError,
+    PlayerNotFoundError,
+    UnresolvedPlayersError,
+)
 from nfl_platform.schemas.common import SeasonType
 from nfl_platform.services import ServiceContainer
 from support import ALLEN_ID, MAHOMES_ID, UNKNOWN_PLAYER_ID
@@ -161,8 +166,29 @@ class TestComparison:
         assert len(comparison.players) == 2
 
     def test_ambiguous_name_in_a_comparison_raises(self, services: ServiceContainer):
-        with pytest.raises(AmbiguousPlayerError):
+        with pytest.raises(UnresolvedPlayersError) as caught:
             services.players.compare(["Mike Williams", MAHOMES_ID], seasons=2024, last_n_games=2)
+        assert caught.value.ambiguous[0][0] == "Mike Williams"
+
+    def test_every_unresolvable_name_is_reported_at_once(self, services: ServiceContainer):
+        """Reporting one at a time costs a retry per name, which an LLM cannot afford."""
+        with pytest.raises(UnresolvedPlayersError) as caught:
+            services.players.compare(
+                ["Mike Williams", "Josh Allen", UNKNOWN_PLAYER_ID], seasons=2024, last_n_games=2
+            )
+        error = caught.value
+        assert {query for query, _ in error.ambiguous} == {"Mike Williams", "Josh Allen"}
+        assert error.missing == (UNKNOWN_PLAYER_ID,)
+
+    def test_reported_candidates_are_usable_identifiers(self, services: ServiceContainer):
+        """The candidates must be enough to build a corrected call in one retry."""
+        with pytest.raises(UnresolvedPlayersError) as caught:
+            services.players.compare(["Mike Williams", MAHOMES_ID], seasons=2024)
+        _, candidates = caught.value.ambiguous[0]
+        corrected = services.players.compare(
+            [candidates[0][0], MAHOMES_ID], seasons=2024, last_n_games=2
+        )
+        assert len(corrected.players) == 2
 
     def test_note_warns_when_game_counts_differ(self, services: ServiceContainer):
         """Unequal samples are the most common way a comparison misleads."""

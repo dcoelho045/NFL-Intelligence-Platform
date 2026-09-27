@@ -105,3 +105,80 @@ class TeamNotFoundError(NflPlatformError):
         self.known = known
         suffix = f" Known teams in scope: {', '.join(known)}." if known else ""
         super().__init__(f"Team {team!r} was not found in {scope}.{suffix}")
+
+
+class UnresolvedPlayersError(NflPlatformError):
+    """Several identifiers in one batch could not be resolved to a single player.
+
+    Reporting the first failure and stopping forces a caller to fix a
+    multi-player request one name at a time, which is slow for a human and
+    actively harmful for an LLM: each retry spends a turn, and enough failed
+    turns withdraw the tool entirely. Every failure is carried at once so one
+    correction is enough.
+    """
+
+    def __init__(
+        self,
+        ambiguous: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (),
+        missing: tuple[str, ...] = (),
+    ) -> None:
+        self.ambiguous = ambiguous
+        self.missing = missing
+        parts: list[str] = []
+        if ambiguous:
+            named = "; ".join(f"{query!r} matches {len(items)}" for query, items in ambiguous)
+            parts.append(f"ambiguous: {named}")
+        if missing:
+            parts.append(f"not found: {', '.join(repr(name) for name in missing)}")
+        super().__init__(
+            f"{len(ambiguous) + len(missing)} of the supplied players could not be "
+            f"identified ({'; '.join(parts)}). Supply a player_id for each."
+        )
+
+
+class LlmError(NflPlatformError):
+    """Base class for failures in the assistant layer."""
+
+
+class LlmConfigurationError(LlmError):
+    """The assistant was asked to run without usable provider configuration."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"LLM is not configured: {reason}")
+
+
+class LlmProviderError(LlmError):
+    """The model provider could not be reached or refused the request.
+
+    Unlike a tool failure -- which is handed back to the model as data it can
+    recover from -- this ends the run, because there is no model left to talk to.
+    """
+
+    def __init__(self, reason: str, *, retryable: bool = False) -> None:
+        self.reason = reason
+        self.retryable = retryable
+        super().__init__(f"LLM provider request failed: {reason}")
+
+
+class UnknownToolError(LlmError):
+    """The model requested a tool that is not registered."""
+
+    def __init__(self, tool: str, known: tuple[str, ...]) -> None:
+        self.tool = tool
+        self.known = known
+        super().__init__(f"Unknown tool {tool!r}. Available tools: {', '.join(known)}.")
+
+
+class AgentLimitExceededError(LlmError):
+    """A run hit its iteration or tool-call budget.
+
+    Raised internally and converted into a truthful partial answer rather than
+    surfacing to the user, because a bounded run that explains what it could not
+    retrieve is more useful than an exception.
+    """
+
+    def __init__(self, limit: str, value: int) -> None:
+        self.limit = limit
+        self.value = value
+        super().__init__(f"Agent stopped after reaching its {limit} limit of {value}.")

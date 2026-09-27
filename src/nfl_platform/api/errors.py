@@ -20,11 +20,14 @@ from nfl_platform.exceptions import (
     InvalidGameCountError,
     InvalidSeasonError,
     InvalidWeekError,
+    LlmConfigurationError,
+    LlmProviderError,
     NflPlatformError,
     PlayerNotFoundError,
     SchemaValidationError,
     TeamNotFoundError,
     UnknownDatasetError,
+    UnresolvedPlayersError,
 )
 from nfl_platform.schemas.common import ErrorResponse
 
@@ -66,6 +69,28 @@ def _ambiguous_player(_: Request, exc: AmbiguousPlayerError) -> JSONResponse:
                 {"player_id": player_id, "description": description}
                 for player_id, description in exc.candidates
             ],
+        },
+    )
+
+
+def _unresolved_players(_: Request, exc: UnresolvedPlayersError) -> JSONResponse:
+    """409: a batch request where several names need disambiguating at once."""
+    return _response(
+        status.HTTP_409_CONFLICT,
+        "unresolved_players",
+        str(exc),
+        {
+            "ambiguous": [
+                {
+                    "query": query,
+                    "candidates": [
+                        {"player_id": player_id, "description": description}
+                        for player_id, description in candidates
+                    ],
+                }
+                for query, candidates in exc.ambiguous
+            ],
+            "not_found": list(exc.missing),
         },
     )
 
@@ -133,6 +158,28 @@ def _value_error(_: Request, exc: ValueError) -> JSONResponse:
     return _response(HTTP_422_UNPROCESSABLE, "invalid_request", str(exc))
 
 
+def _llm_not_configured(_: Request, exc: LlmConfigurationError) -> JSONResponse:
+    """503: the analytics endpoints still work; only the assistant is unavailable."""
+    logger.warning("Assistant requested without provider configuration")
+    return _response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "llm_not_configured",
+        str(exc),
+        {"hint": "Set NFL_LLM_API_KEY or OPENAI_API_KEY to enable the assistant."},
+    )
+
+
+def _llm_provider_error(_: Request, exc: LlmProviderError) -> JSONResponse:
+    """502: we are reachable, the upstream model is not."""
+    logger.error("LLM provider failed", extra={"retryable": exc.retryable})
+    return _response(
+        status.HTTP_502_BAD_GATEWAY,
+        "llm_provider_error",
+        str(exc),
+        {"retryable": exc.retryable},
+    )
+
+
 def _platform_error(_: Request, exc: NflPlatformError) -> JSONResponse:
     """Catch-all for domain errors without a more specific handler."""
     logger.error("Unhandled platform error", exc_info=exc)
@@ -144,6 +191,7 @@ def _platform_error(_: Request, exc: NflPlatformError) -> JSONResponse:
 _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
     (PlayerNotFoundError, _player_not_found),
     (AmbiguousPlayerError, _ambiguous_player),
+    (UnresolvedPlayersError, _unresolved_players),
     (TeamNotFoundError, _team_not_found),
     (InvalidSeasonError, _invalid_season),
     (InvalidWeekError, _invalid_week),
@@ -151,6 +199,8 @@ _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
     (UnknownDatasetError, _unknown_dataset),
     (DatasetNotAvailableError, _dataset_unavailable),
     (SchemaValidationError, _schema_validation),
+    (LlmConfigurationError, _llm_not_configured),
+    (LlmProviderError, _llm_provider_error),
     (NflPlatformError, _platform_error),
     (ValueError, _value_error),
 )

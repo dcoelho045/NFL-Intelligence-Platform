@@ -1,0 +1,242 @@
+{
+  "summary": {
+    "model": "gpt-4.1",
+    "prompt_version": "analyst_v1",
+    "questions": 12,
+    "errors": 0,
+    "tool_selection_accuracy": 1.0,
+    "grounding_rate": 1.0,
+    "mean_latency_ms": 14985.1,
+    "median_latency_ms": 11705.1,
+    "total_tokens": 135628,
+    "total_cost_usd": 0.2824
+  },
+  "results": [
+    {
+      "question": "How many passing yards did Patrick Mahomes have in 2024?",
+      "tools_used": [
+        "get_player_stats"
+      ],
+      "expected_tools": [
+        "get_player_game_log",
+        "get_player_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 15172.7,
+      "total_tokens": 9381,
+      "estimated_cost_usd": 0.019068,
+      "answer": "Patrick Mahomes had 1,235 passing yards in the 2024 season (covering 5 games)."
+    },
+    {
+      "question": "How has Patrick Mahomes played over his last three games?",
+      "tools_used": [
+        "get_player_stats"
+      ],
+      "expected_tools": [
+        "get_player_game_log",
+        "get_player_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 11133.9,
+      "total_tokens": 9495,
+      "estimated_cost_usd": 0.019938,
+      "answer": "Over his last three games (2024 season), Patrick Mahomes has:\n\n- Passed for 793 yards, 3 touchdowns, and 3 interceptions\n- Completed 73 of 107 attempts\n- Averaged 264.3 passing yards, 1 touchdown, and 1 interception per game\n- Added 51 rushing yards on 17 carries (17 yards per game, no rushing TDs)\n- Scored 42.82 total fantasy points (14.27 per game, standard and PPR)\n\nHis production has been solid in yardage, but touchdown totals are modest and interceptions have matched his passing TDs in this stretch."
+    },
+    {
+      "question": "What is Patrick Mahomes' snap share and usage this season?",
+      "tools_used": [
+        "search_players",
+        "get_player_usage"
+      ],
+      "expected_tools": [
+        "get_fantasy_usage_trend",
+        "get_player_usage"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 3,
+      "stop_reason": "completed",
+      "duration_ms": 20558.4,
+      "total_tokens": 14359,
+      "estimated_cost_usd": 0.029702,
+      "answer": "Patrick Mahomes has played 100% of the Kansas City Chiefs' offensive snaps in every game so far this season (2024). Over the first four games, he has averaged a 1.0 (100%) snap share.\n\nAs a quarterback, his usage metrics show:\n- 21 carries total (no targets, as expected for a QB)\n- 0% target share and 0.0 WOPR (wide receiver opportunity rating, not relevant for QBs)\n\nIn summary: Mahomes is on the field for every offensive snap, with all usage coming from passing and some rushing attempts."
+    },
+    {
+      "question": "Is Patrick Mahomes on the injury report?",
+      "tools_used": [
+        "search_players",
+        "get_player_injuries"
+      ],
+      "expected_tools": [
+        "get_player_injuries"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 3,
+      "stop_reason": "completed",
+      "duration_ms": 19652.2,
+      "total_tokens": 13850,
+      "estimated_cost_usd": 0.028102,
+      "answer": "Patrick Mahomes is not currently on the injury report for the 2024 season. There are no reported injuries for him in the available data."
+    },
+    {
+      "question": "Should I start Patrick Mahomes or Josh Allen in PPR this week?",
+      "tools_used": [
+        "compare_fantasy_players",
+        "get_fantasy_matchup_context"
+      ],
+      "expected_tools": [
+        "compare_fantasy_players",
+        "compare_players",
+        "get_fantasy_production"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 3,
+      "stop_reason": "completed",
+      "duration_ms": 24774.7,
+      "total_tokens": 16891,
+      "estimated_cost_usd": 0.036578,
+      "answer": "Based on recent PPR fantasy production, you should start Josh Allen over Patrick Mahomes this week.\n\n- Over the last 4 games (2024 season, all games):\n  - Josh Allen has averaged 19.3 PPR points per game (best: 30.92, worst: 7.3).\n  - Patrick Mahomes has averaged 13.9 PPR points per game (best: 16.38, worst: 12.94).\n\nMatchup context:\n- Mahomes faces the Buffalo defense, which has allowed an average of 245.5 passing yards and 1.5 passing TDs per game over their last 4.\n- Allen faces the Kansas City defense, which has allowed an average of 212.3 passing yards and 1.5 passing TDs per game over their last 4.\n\nJudgement: Allen has shown a higher ceiling and average recently, and both defenses are similar in terms of passing TDs allowed. Allen's recent production gives him the edge, though his week-to-week consistency is lower (higher standard deviation). If you prefer a safer floor, Mahomes is steadier, but Allen offers more upside.\n\nIf new injury or weather news emerges, that could affect the decision. As of now, Allen is the stronger start."
+    },
+    {
+      "question": "Compare Patrick Mahomes and Josh Allen this season.",
+      "tools_used": [
+        "compare_players",
+        "compare_fantasy_players"
+      ],
+      "expected_tools": [
+        "compare_fantasy_players",
+        "compare_players",
+        "get_player_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 4,
+      "stop_reason": "completed",
+      "duration_ms": 33302.8,
+      "total_tokens": 20005,
+      "estimated_cost_usd": 0.041438,
+      "answer": "Comparing Patrick Mahomes and Josh Allen through the first four games of the 2024 regular season:\n\n- Josh Allen (BUF) has scored 77.26 PPR fantasy points, averaging 19.32 per game. His best week was 30.92 points, and his lowest was 7.30.\n- Patrick Mahomes (KC) has scored 55.76 PPR fantasy points, averaging 13.94 per game. His best week was 16.38 points, and his lowest was 12.94.\n\nAllen has outperformed Mahomes in both total and average fantasy points so far this season, but his week-to-week scoring has been more volatile."
+    },
+    {
+      "question": "How has the Kansas City offense performed recently?",
+      "tools_used": [
+        "get_team_stats"
+      ],
+      "expected_tools": [
+        "get_team_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 10556.5,
+      "total_tokens": 9327,
+      "estimated_cost_usd": 0.019494,
+      "answer": "The Kansas City Chiefs offense has averaged 365.3 total yards per game over their last 4 games (2024 season, all games). They have produced 236.0 passing yards and 129.3 rushing yards per game, with an average of 2 total touchdowns (1.25 passing, 0.75 rushing) per game. The offense has also averaged 1.25 turnovers per game in this span.\n\nTheir passing EPA has been slightly negative, while their rushing EPA has been positive, suggesting the run game has been more efficient recently."
+    },
+    {
+      "question": "How well has Buffalo's defense played this season?",
+      "tools_used": [
+        "get_team_stats"
+      ],
+      "expected_tools": [
+        "get_team_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 10610.0,
+      "total_tokens": 9320,
+      "estimated_cost_usd": 0.019438,
+      "answer": "Buffalo's defense in the 2024 season has allowed an average of 390.0 total yards per game over their first 4 games. This includes 245.5 passing yards and 144.5 rushing yards allowed per game. They've given up an average of 1.5 passing touchdowns and 0.75 rushing touchdowns per game.\n\nIn summary, Buffalo's defense has struggled somewhat, especially against the run, allowing significant yardage and a total of 2.25 touchdowns per game so far this season."
+    },
+    {
+      "question": "What is Kansas City's recent record?",
+      "tools_used": [
+        "get_team_form"
+      ],
+      "expected_tools": [
+        "get_recent_games",
+        "get_team_form"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 10430.2,
+      "total_tokens": 9174,
+      "estimated_cost_usd": 0.018828,
+      "answer": "Kansas City has won their last 4 games, going 4-0 over their most recent 4 games in the 2024 season. They averaged 22.75 points scored and allowed 16.25 points per game, with an average point differential of +6.5."
+    },
+    {
+      "question": "Who is more likely to win between Kansas City and Buffalo?",
+      "tools_used": [
+        "get_matchup"
+      ],
+      "expected_tools": [
+        "get_matchup",
+        "get_team_form",
+        "get_team_stats"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 12276.3,
+      "total_tokens": 10159,
+      "estimated_cost_usd": 0.021776,
+      "answer": "Based on recent performance in the 2024 season, Kansas City appears more likely to win against Buffalo.\n\n- Kansas City is undefeated in their last 4 games (4-0), averaging 22.75 points scored and allowing 16.25 points per game, with a point differential of +6.5.\n- Buffalo is 2-2 in their last 4 games, averaging 25.0 points scored and allowing 22.0 points per game, with a point differential of +3.0.\n\nKansas City's defense has been stronger, allowing only 276.5 total yards per game compared to Buffalo's 390.0. Offensively, both teams are productive, but Buffalo has not turned the ball over in this stretch, while Kansas City has averaged 1.25 turnovers per game.\n\nJudgement: Kansas City's perfect record and stronger defense give them the edge, though Buffalo's offense is potent and turnover-free. If Buffalo's defense improves or Kansas City turns the ball over, the outcome could shift. No scheduled meeting is currently found for these teams in 2024."
+    },
+    {
+      "question": "Which teams and seasons do you have data for?",
+      "tools_used": [
+        "list_reference_data"
+      ],
+      "expected_tools": [
+        "list_reference_data"
+      ],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 2,
+      "stop_reason": "completed",
+      "duration_ms": 10191.8,
+      "total_tokens": 9124,
+      "estimated_cost_usd": 0.01865,
+      "answer": "I have data for the following NFL teams: ARI, ATL, BAL, BUF, CIN, HOU, JAX, KC, LAC, MIA, NO, and NYJ. The available season in the data is 2024."
+    },
+    {
+      "question": "How many rushing yards did Zxqwv Nonexistent have in 2024?",
+      "tools_used": [],
+      "expected_tools": [],
+      "tool_selection_ok": true,
+      "grounded": true,
+      "ungrounded_numbers": [],
+      "iterations": 1,
+      "stop_reason": "completed",
+      "duration_ms": 1161.1,
+      "total_tokens": 4543,
+      "estimated_cost_usd": 0.00938,
+      "answer": "I could not find any player named Zxqwv Nonexistent in the NFL database, so I do not have any rushing yard data for that player in 2024. If you meant a different player, please provide the correct name."
+    }
+  ]
+}
