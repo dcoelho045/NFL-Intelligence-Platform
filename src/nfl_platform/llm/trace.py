@@ -44,6 +44,50 @@ def estimate_cost_usd(model: str, usage: Usage) -> float | None:
 
 
 @dataclass
+class RetrievalStats:
+    """What retrieval cost this run.
+
+    Web searches are billed per query and embeddings per token, so neither
+    appears in the model's token counters. Counting them here is what lets
+    retrieval spend be compared against model spend later.
+
+    Declared locally rather than imported from the retrieval layer: the LLM
+    layer reaches retrieval only through services, and an import here would be
+    the first crack in that.
+    """
+
+    web_searches: int = 0
+    web_cache_hits: int = 0
+    web_results: int = 0
+    web_results_dropped: int = 0
+    knowledge_searches: int = 0
+    knowledge_hits: int = 0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "web_searches": self.web_searches,
+            "web_cache_hits": self.web_cache_hits,
+            "web_results": self.web_results,
+            "web_results_dropped": self.web_results_dropped,
+            "knowledge_searches": self.knowledge_searches,
+            "knowledge_hits": self.knowledge_hits,
+        }
+
+    def record(self, source_kind: str, payload: dict[str, Any] | None) -> None:
+        """Fold one retrieval tool result into the totals."""
+        if not payload:
+            return
+        if source_kind == "web":
+            self.web_searches += 1
+            self.web_cache_hits += 1 if payload.get("cache_hit") else 0
+            self.web_results += int(payload.get("result_count") or 0)
+            self.web_results_dropped += int(payload.get("dropped_count") or 0)
+        elif source_kind == "knowledge_base":
+            self.knowledge_searches += 1
+            self.knowledge_hits += int(payload.get("result_count") or 0)
+
+
+@dataclass
 class ToolCallRecord:
     """One executed tool call."""
 
@@ -53,6 +97,7 @@ class ToolCallRecord:
     duration_ms: float
     error_code: str | None = None
     result: dict[str, Any] | None = None
+    source_kind: str = "structured"
 
     def as_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -60,6 +105,7 @@ class ToolCallRecord:
             "arguments": self.arguments,
             "ok": self.ok,
             "duration_ms": round(self.duration_ms, 1),
+            "source_kind": self.source_kind,
         }
         if self.error_code:
             payload["error_code"] = self.error_code
@@ -77,6 +123,10 @@ class RunTrace:
     usage: Usage = field(default_factory=Usage)
     tool_calls: list[ToolCallRecord] = field(default_factory=list)
     ungrounded_numbers: list[str] = field(default_factory=list)
+    numbers_from_unstructured_sources: list[str] = field(default_factory=list)
+    fabricated_sources: list[str] = field(default_factory=list)
+    sources: list[dict[str, Any]] = field(default_factory=list)
+    retrieval: RetrievalStats = field(default_factory=RetrievalStats)
     stop_reason: str = "completed"
     duration_ms: float = 0.0
     _started: float = field(default_factory=time.perf_counter, repr=False)
@@ -112,6 +162,15 @@ class RunTrace:
     def is_grounded(self) -> bool:
         return not self.ungrounded_numbers
 
+    @property
+    def citations_are_valid(self) -> bool:
+        return not self.fabricated_sources
+
+    @property
+    def retrieval_sources(self) -> list[dict[str, Any]]:
+        """Only the web and knowledge-base entries, for reporting."""
+        return [item for item in self.sources if item.get("kind") != "structured"]
+
     def as_dict(self) -> dict[str, Any]:
         cost = self.estimated_cost_usd
         return {
@@ -127,4 +186,8 @@ class RunTrace:
             "tools_used": self.tools_used,
             "tool_calls": [call.as_dict() for call in self.tool_calls],
             "ungrounded_numbers": self.ungrounded_numbers,
+            "numbers_from_unstructured_sources": self.numbers_from_unstructured_sources,
+            "fabricated_sources": self.fabricated_sources,
+            "sources": self.sources,
+            "retrieval": self.retrieval.as_dict(),
         }

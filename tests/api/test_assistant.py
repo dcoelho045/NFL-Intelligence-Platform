@@ -16,6 +16,7 @@ from nfl_platform.api.app import create_app
 from nfl_platform.config.settings import Settings
 from nfl_platform.llm.agent import NflAnalystAgent
 from nfl_platform.llm.client import ChatMessage, Completion, ScriptedChatClient, ToolCall, Usage
+from nfl_platform.llm.prompts import DEFAULT_PROMPT_VERSION
 from nfl_platform.llm.registry import build_default_registry
 from nfl_platform.services import ServiceContainer
 from support import MAHOMES_ID
@@ -82,11 +83,30 @@ class TestAskEndpoint:
         stats = assistant_client.post("/api/v1/assistant/ask", json={"question": QUESTION}).json()[
             "stats"
         ]
-        assert stats["prompt_version"] == "analyst_v1"
+        assert stats["prompt_version"] == DEFAULT_PROMPT_VERSION
 
     def test_grounding_findings_are_exposed(self, assistant_client: TestClient):
         body = assistant_client.post("/api/v1/assistant/ask", json={"question": QUESTION}).json()
         assert body["stats"]["ungrounded_numbers"] == []
+
+    def test_sources_are_returned_and_labelled_by_kind(self, assistant_client: TestClient):
+        body = assistant_client.post("/api/v1/assistant/ask", json={"question": QUESTION}).json()
+        assert body["sources"] == [{"kind": "structured", "label": "get_player_stats"}]
+
+    def test_retrieval_counters_are_reported(self, assistant_client: TestClient):
+        """A question answered from analytics alone must spend no retrieval budget."""
+        stats = assistant_client.post("/api/v1/assistant/ask", json={"question": QUESTION}).json()[
+            "stats"
+        ]
+        assert stats["retrieval"]["web_searches"] == 0
+        assert stats["retrieval"]["knowledge_searches"] == 0
+
+    def test_unstructured_number_bucket_is_exposed(self, assistant_client: TestClient):
+        stats = assistant_client.post("/api/v1/assistant/ask", json={"question": QUESTION}).json()[
+            "stats"
+        ]
+        assert stats["numbers_from_unstructured_sources"] == []
+        assert stats["fabricated_sources"] == []
 
     def test_history_is_accepted(self, assistant_client: TestClient):
         response = assistant_client.post(

@@ -40,19 +40,59 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _render(result: AssistantAnswer, *, show_trace: bool) -> str:
     lines = ["", result.answer]
-    if result.evidence:
-        tools = ", ".join(sorted({item.tool for item in result.evidence}))
-        lines.append(f"\n[sources: {tools}]")
-    else:
+    trace = result.trace
+
+    if trace is not None and trace.sources:
+        lines.append("")
+        for source in trace.sources:
+            kind = source.get("kind")
+            if kind == "structured":
+                lines.append(f"  [analytics]  {source['label']}")
+            elif kind == "web":
+                when = source.get("published_at") or "undated"
+                lines.append(f"  [web]        {source['label']}")
+                lines.append(f"               {source.get('domain')} | {when}")
+                lines.append(f"               {source.get('url')}")
+            else:
+                updated = source.get("updated") or "undated"
+                lines.append(
+                    f"  [knowledge]  {source['label']} "
+                    f"({source.get('document_id')}, updated {updated})"
+                )
+    elif not result.evidence:
         lines.append("\n[no tools were called - this answer contains no verified statistics]")
-    if show_trace and result.trace is not None:
-        lines.append(json.dumps(result.trace.as_dict(), indent=2))
-    if result.trace is not None and result.trace.ungrounded_numbers:
-        lines.append(
-            "[warning: these numbers were not found in any tool result: "
-            + ", ".join(result.trace.ungrounded_numbers)
-            + "]"
-        )
+
+    if trace is not None:
+        retrieval = trace.retrieval
+        if retrieval.web_searches or retrieval.knowledge_searches:
+            lines.append(
+                f"\n[retrieval: {retrieval.web_searches} web search(es), "
+                f"{retrieval.web_results} result(s), "
+                f"{retrieval.web_results_dropped} dropped; "
+                f"{retrieval.knowledge_searches} kb search(es), "
+                f"{retrieval.knowledge_hits} chunk(s)]"
+            )
+        if trace.numbers_from_unstructured_sources:
+            lines.append(
+                "[from retrieved text, not the analytics layer: "
+                + ", ".join(trace.numbers_from_unstructured_sources)
+                + "]"
+            )
+        if trace.fabricated_sources:
+            lines.append(
+                "[warning: these sources were never retrieved: "
+                + ", ".join(trace.fabricated_sources)
+                + "]"
+            )
+        if trace.ungrounded_numbers:
+            lines.append(
+                "[warning: these numbers were not found in any tool result: "
+                + ", ".join(trace.ungrounded_numbers)
+                + "]"
+            )
+
+    if show_trace and trace is not None:
+        lines.append(json.dumps(trace.as_dict(), indent=2))
     return "\n".join(lines)
 
 

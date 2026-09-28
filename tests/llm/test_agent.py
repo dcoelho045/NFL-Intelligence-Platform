@@ -13,6 +13,7 @@ import pytest
 
 from nfl_platform.exceptions import DatasetNotAvailableError
 from nfl_platform.llm.client import ChatMessage
+from nfl_platform.llm.prompts import DEFAULT_PROMPT_VERSION
 from nfl_platform.llm.registry import ToolRegistry, build_default_registry
 from nfl_platform.llm.results import ToolResult
 from nfl_platform.llm.tools.base import Tool, ToolArgs
@@ -367,7 +368,7 @@ class TestTraceContents:
     def test_prompt_version_is_recorded(self, make_agent: AgentFactory):
         agent = make_agent([answer_completion("Done.")])
         result = agent.ask(QUESTION)
-        assert result.trace.prompt_version == "analyst_v1"
+        assert result.trace.prompt_version == DEFAULT_PROMPT_VERSION
 
     def test_trace_serialises_for_logging(self, make_agent: AgentFactory):
         agent = make_agent(

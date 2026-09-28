@@ -5,8 +5,9 @@ model and the deterministic analytics layer sits.
 
 ## The boundary in one sentence
 
-The model chooses **which** questions to ask of the analytics layer and **how**
-to phrase the answer; the analytics layer decides **what the numbers are**.
+The analytics layer decides **what the numbers are**, web retrieval says **what
+is true now**, the knowledge base says **what the words mean**, and the model
+chooses which to ask and how to phrase the answer.
 
 ```mermaid
 sequenceDiagram
@@ -61,8 +62,19 @@ would double the failure modes for no benefit on one machine.
 
 ## Tools
 
-Seventeen tools, each mapping 1:1 to a service method. The menu is kept small on
-purpose: tool-selection accuracy degrades as it grows.
+Nineteen tools: seventeen deterministic analytics tools, each mapping 1:1 to a
+service method, plus two retrieval tools added in Milestone 4. The menu is kept
+small on purpose: tool-selection accuracy degrades as it grows.
+
+Every tool declares a `source_kind`, and it is not merely a label — only
+`structured` results may ground a statistic. See
+[rag-design.md](rag-design.md#grounding-three-buckets).
+
+| `source_kind`    | Tools                   | Authoritative for     |
+| ---------------- | ----------------------- | --------------------- |
+| `structured`     | the 17 analytics tools  | every NFL statistic   |
+| `web`            | `search_web`            | current information   |
+| `knowledge_base` | `search_knowledge_base` | definitions and rules |
 
 ### Resolution
 
@@ -105,6 +117,18 @@ purpose: tool-selection accuracy degrades as it grows.
 | Tool                  | Service                                               |
 | --------------------- | ----------------------------------------------------- |
 | `list_reference_data` | `meta.teams` / `meta.seasons` / `meta.current_season` |
+
+### Retrieval (Milestone 4)
+
+| Tool                    | Service            | Notes                                                           |
+| ----------------------- | ------------------ | --------------------------------------------------------------- |
+| `search_web`            | `research.search`  | Current information only. Untrusted external content.           |
+| `search_knowledge_base` | `knowledge.search` | Stable definitions and methodology. No statistics, not current. |
+
+Both descriptions are written as negative space — each states what it is _not_
+for — because the boundary against the analytics tools is where routing goes
+wrong. Neither fetches a URL of the model's choosing; search results are the
+only external content that can enter a run.
 
 `GET /api/v1/assistant/tools` returns this catalogue with each tool's live JSON
 Schema.
@@ -257,9 +281,14 @@ records which budget was hit.
 ## Prompts
 
 Prompts are files, so a change to the model's instructions is a reviewable diff.
-The version (`analyst_v1`) is recorded in every trace and returned in the API
-response. Tests assert that the grounding rules are present, so deleting them
-breaks the build rather than silently changing behaviour.
+The version (`analyst_v2`) is recorded in every trace and returned in the API
+response. Tests assert that the grounding and untrusted-content rules are
+present, so deleting them breaks the build rather than silently changing
+behaviour.
+
+`analyst_v1` is retained unchanged. Keeping it means a benchmark run can
+attribute a change in behaviour to the prompt rather than to the retrieval tools
+added beside it.
 
 `orchestrator_v1` is deliberately absent: there is nothing to orchestrate until
 Milestone 7.

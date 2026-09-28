@@ -13,7 +13,9 @@ from functools import lru_cache
 from pathlib import Path
 
 PROMPT_DIR = Path(__file__).resolve().parent
-DEFAULT_PROMPT_VERSION = "analyst_v1"
+# v1 is retained unchanged so a benchmark run can attribute any change in
+# behaviour to the prompt rather than to the tools added alongside it.
+DEFAULT_PROMPT_VERSION = "analyst_v2"
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,31 @@
+{
+  "_comment": "Results a live search would rarely hand back but that the pipeline must survive: markup, a missing publication date, an unparsable date, a very long body, and an entry with no usable URL.",
+  "query": "nfl news",
+  "results": [
+    {
+      "title": "<b>Breaking</b>: trade completed",
+      "url": "https://www.nfl.com/news/messy-markup",
+      "content": "<div class=\"article\"><script>window.track('x')</script><p>The trade was <b>finalised</b> on Tuesday. See [the full terms](https://tracker.example.test/click?id=99) for details.</p><!-- internal note --></div>",
+      "score": 0.8
+    },
+    {
+      "title": "Undated analysis piece",
+      "url": "https://www.pff.com/news/undated-piece",
+      "content": "A look at how the defence has adjusted its coverage shells since the bye.",
+      "score": 0.64
+    },
+    {
+      "title": "Piece with an unparsable date",
+      "url": "https://www.theathletic.com/nfl/unparsable-date",
+      "content": "Notes from the practice facility.",
+      "published_date": "last Tuesday-ish",
+      "score": 0.5
+    },
+    {
+      "title": "Result with no usable URL",
+      "url": "not-a-url",
+      "content": "This entry should be discarded before it reaches the model.",
+      "score": 0.2
+    }
+  ]
+}

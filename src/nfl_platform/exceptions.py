@@ -182,3 +182,81 @@ class AgentLimitExceededError(LlmError):
         self.limit = limit
         self.value = value
         super().__init__(f"Agent stopped after reaching its {limit} limit of {value}.")
+
+
+class RetrievalError(NflPlatformError):
+    """Base class for failures in the retrieval layer."""
+
+
+class WebSearchNotConfiguredError(RetrievalError):
+    """Web retrieval was requested with no provider or key available.
+
+    Distinct from a provider outage: nothing is wrong, the capability simply is
+    not switched on, and the assistant should say so rather than retry.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Web search is not configured: {reason}")
+
+
+class WebSearchError(RetrievalError):
+    """The web-search provider could not be reached or refused the request."""
+
+    def __init__(self, provider: str, reason: str, *, retryable: bool = True) -> None:
+        self.provider = provider
+        self.reason = reason
+        self.retryable = retryable
+        super().__init__(f"Web search via {provider!r} failed: {reason}")
+
+
+class WebSearchBudgetExceededError(RetrievalError):
+    """A single run asked for more searches than its configured ceiling allows."""
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        super().__init__(f"This question has already used its budget of {limit} web search(es).")
+
+
+class KnowledgeIndexUnavailableError(RetrievalError):
+    """The local vector index is missing, empty, or unreadable."""
+
+    def __init__(self, path: str, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Knowledge index at {path!r} is unavailable: {reason}")
+
+
+class KnowledgeIndexStaleError(RetrievalError):
+    """The index was built with different embedding settings than are configured now.
+
+    Comparing vectors from two different models silently produces plausible
+    nonsense, so this refuses to serve rather than degrade.
+    """
+
+    def __init__(self, path: str, expected: str, found: str) -> None:
+        self.path = path
+        self.expected = expected
+        self.found = found
+        super().__init__(
+            f"Knowledge index at {path!r} was built with {found}, but {expected} is "
+            "configured. Rebuild it with scripts/build_knowledge_index.py."
+        )
+
+
+class CorpusValidationError(RetrievalError):
+    """A knowledge document is missing required front-matter or is unreadable."""
+
+    def __init__(self, path: str, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Knowledge document {path!r} is invalid: {reason}")
+
+
+class EmbeddingError(RetrievalError):
+    """The embedding provider could not be reached or refused the request."""
+
+    def __init__(self, provider: str, reason: str) -> None:
+        self.provider = provider
+        self.reason = reason
+        super().__init__(f"Embedding via {provider!r} failed: {reason}")

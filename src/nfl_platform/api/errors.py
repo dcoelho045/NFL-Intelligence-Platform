@@ -20,6 +20,7 @@ from nfl_platform.exceptions import (
     InvalidGameCountError,
     InvalidSeasonError,
     InvalidWeekError,
+    KnowledgeIndexUnavailableError,
     LlmConfigurationError,
     LlmProviderError,
     NflPlatformError,
@@ -28,6 +29,8 @@ from nfl_platform.exceptions import (
     TeamNotFoundError,
     UnknownDatasetError,
     UnresolvedPlayersError,
+    WebSearchError,
+    WebSearchNotConfiguredError,
 )
 from nfl_platform.schemas.common import ErrorResponse
 
@@ -186,6 +189,39 @@ def _platform_error(_: Request, exc: NflPlatformError) -> JSONResponse:
     return _response(status.HTTP_500_INTERNAL_SERVER_ERROR, "internal_error", str(exc))
 
 
+def _web_search_not_configured(_: Request, exc: WebSearchNotConfiguredError) -> JSONResponse:
+    """503: retrieval is switched off, not broken. Everything else still works."""
+    return _response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "web_search_not_configured",
+        str(exc),
+        {"hint": "Set NFL_WEB_SEARCH_API_KEY or TAVILY_API_KEY to enable web retrieval."},
+    )
+
+
+def _web_search_error(_: Request, exc: WebSearchError) -> JSONResponse:
+    """502: we are reachable, the search provider is not."""
+    logger.warning(
+        "Web search provider failed",
+        extra={"provider": exc.provider, "retryable": exc.retryable},
+    )
+    return _response(
+        status.HTTP_502_BAD_GATEWAY,
+        "web_search_error",
+        str(exc),
+        {"provider": exc.provider, "retryable": exc.retryable},
+    )
+
+
+def _knowledge_index_unavailable(_: Request, exc: KnowledgeIndexUnavailableError) -> JSONResponse:
+    return _response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "knowledge_index_unavailable",
+        str(exc),
+        {"hint": "Build it with: python scripts/build_knowledge_index.py"},
+    )
+
+
 # Ordered specific-to-general; FastAPI dispatches on the exact class then walks
 # the MRO, so the base-class entry only catches what is not listed above it.
 _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
@@ -201,6 +237,9 @@ _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
     (SchemaValidationError, _schema_validation),
     (LlmConfigurationError, _llm_not_configured),
     (LlmProviderError, _llm_provider_error),
+    (WebSearchNotConfiguredError, _web_search_not_configured),
+    (WebSearchError, _web_search_error),
+    (KnowledgeIndexUnavailableError, _knowledge_index_unavailable),
     (NflPlatformError, _platform_error),
     (ValueError, _value_error),
 )

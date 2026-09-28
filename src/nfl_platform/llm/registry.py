@@ -38,6 +38,7 @@ from nfl_platform.llm.tools.players import (
     GetPlayerUsageTool,
     SearchPlayersTool,
 )
+from nfl_platform.llm.tools.research import SearchKnowledgeBaseTool, SearchWebTool
 from nfl_platform.llm.tools.teams import (
     GetMatchupTool,
     GetRecentGamesTool,
@@ -45,6 +46,7 @@ from nfl_platform.llm.tools.teams import (
     GetTeamInjuriesTool,
     GetTeamStatsTool,
 )
+from nfl_platform.schemas.evidence import SourceKind
 from nfl_platform.services.container import ServiceContainer
 
 logger = get_logger(__name__)
@@ -67,6 +69,8 @@ DEFAULT_TOOL_TYPES: tuple[type[Tool[Any]], ...] = (
     GetFantasyMatchupContextTool,
     CompareFantasyPlayersTool,
     ListReferenceDataTool,
+    SearchWebTool,
+    SearchKnowledgeBaseTool,
 )
 
 
@@ -131,6 +135,11 @@ class ToolRegistry:
                     extra={"tool": name, "error_code": detail.code},
                 )
             return ToolResult.failure(name, detail)
+
+    def source_kind(self, name: str) -> SourceKind:
+        """Which evidence channel a tool speaks for, defaulting to structured."""
+        tool = self._tools.get(name)
+        return SourceKind.STRUCTURED if tool is None else tool.source_kind
 
     @staticmethod
     def _parse_arguments(arguments: str | dict[str, Any]) -> dict[str, Any] | ToolErrorDetail:

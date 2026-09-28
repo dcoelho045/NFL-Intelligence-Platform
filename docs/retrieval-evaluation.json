@@ -1,0 +1,1107 @@
+{
+  "rag": {
+    "suite": "rag",
+    "summary": {
+      "embedding_model": "text-embedding-3-small",
+      "dimensions": 1536,
+      "min_score": 0.45,
+      "questions": 30,
+      "hit_at_1": 1.0,
+      "hit_at_3": 1.0,
+      "hit_at_5": 1.0,
+      "mrr": 1.0,
+      "negative_controls": 6,
+      "negative_control_pass_rate": 1.0,
+      "median_latency_ms": 241.6
+    },
+    "results": [
+      {
+        "question": "What does PPR mean in fantasy football?",
+        "expected_documents": [
+          "fantasy-scoring-formats"
+        ],
+        "retrieved_documents": [
+          "fantasy-scoring-formats",
+          "fantasy-scoring-formats",
+          "glossary-abbreviations",
+          "fantasy-metrics",
+          "fantasy-scoring-formats"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7059,
+        "duration_ms": 1127.6
+      },
+      {
+        "question": "How many points is a passing touchdown worth in fantasy?",
+        "expected_documents": [
+          "fantasy-scoring-formats"
+        ],
+        "retrieved_documents": [
+          "fantasy-scoring-formats",
+          "nfl-scoring-rules",
+          "nfl-scoring-rules",
+          "fantasy-scoring-formats",
+          "positions-and-roles"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6249,
+        "duration_ms": 229.0
+      },
+      {
+        "question": "What is half PPR scoring?",
+        "expected_documents": [
+          "fantasy-scoring-formats"
+        ],
+        "retrieved_documents": [
+          "fantasy-scoring-formats",
+          "fantasy-scoring-formats",
+          "fantasy-scoring-formats",
+          "fantasy-scoring-formats",
+          "fantasy-scoring-formats"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7682,
+        "duration_ms": 577.7
+      },
+      {
+        "question": "What is a superflex league?",
+        "expected_documents": [
+          "fantasy-scoring-formats"
+        ],
+        "retrieved_documents": [
+          "fantasy-scoring-formats",
+          "glossary-abbreviations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7164,
+        "duration_ms": 489.9
+      },
+      {
+        "question": "What is target share?",
+        "expected_documents": [
+          "fantasy-metrics"
+        ],
+        "retrieved_documents": [
+          "fantasy-metrics",
+          "fantasy-metrics"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6808,
+        "duration_ms": 237.9
+      },
+      {
+        "question": "What does WOPR measure?",
+        "expected_documents": [
+          "fantasy-metrics"
+        ],
+        "retrieved_documents": [
+          "fantasy-metrics"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6564,
+        "duration_ms": 307.7
+      },
+      {
+        "question": "What are air yards?",
+        "expected_documents": [
+          "fantasy-metrics"
+        ],
+        "retrieved_documents": [
+          "fantasy-metrics",
+          "fantasy-metrics",
+          "advanced-stats-glossary",
+          "fantasy-metrics"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7622,
+        "duration_ms": 242.4
+      },
+      {
+        "question": "What is average depth of target?",
+        "expected_documents": [
+          "fantasy-metrics",
+          "glossary-abbreviations"
+        ],
+        "retrieved_documents": [
+          "fantasy-metrics"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5857,
+        "duration_ms": 230.0
+      },
+      {
+        "question": "What is snap share?",
+        "expected_documents": [
+          "fantasy-metrics"
+        ],
+        "retrieved_documents": [
+          "fantasy-metrics",
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5852,
+        "duration_ms": 395.7
+      },
+      {
+        "question": "How many points is a safety worth?",
+        "expected_documents": [
+          "nfl-scoring-rules"
+        ],
+        "retrieved_documents": [
+          "nfl-scoring-rules",
+          "nfl-scoring-rules",
+          "nfl-scoring-rules",
+          "nfl-scoring-rules"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6972,
+        "duration_ms": 249.5
+      },
+      {
+        "question": "How does overtime work in the NFL playoffs?",
+        "expected_documents": [
+          "nfl-scoring-rules"
+        ],
+        "retrieved_documents": [
+          "nfl-scoring-rules"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6708,
+        "duration_ms": 222.9
+      },
+      {
+        "question": "What is a two-point conversion?",
+        "expected_documents": [
+          "nfl-scoring-rules"
+        ],
+        "retrieved_documents": [
+          "nfl-scoring-rules",
+          "nfl-scoring-rules",
+          "nfl-scoring-rules"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6372,
+        "duration_ms": 246.8
+      },
+      {
+        "question": "How many weeks are in an NFL regular season?",
+        "expected_documents": [
+          "season-structure"
+        ],
+        "retrieved_documents": [
+          "season-structure",
+          "season-structure",
+          "season-structure",
+          "nfl-scoring-rules"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5926,
+        "duration_ms": 187.4
+      },
+      {
+        "question": "What is the difference between REG and POST season type?",
+        "expected_documents": [
+          "glossary-abbreviations",
+          "season-structure"
+        ],
+        "retrieved_documents": [
+          "glossary-abbreviations",
+          "season-structure",
+          "analytics-conventions",
+          "season-structure"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7015,
+        "duration_ms": 218.1
+      },
+      {
+        "question": "How many teams make the playoffs in each conference?",
+        "expected_documents": [
+          "season-structure"
+        ],
+        "retrieved_documents": [
+          "season-structure"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6277,
+        "duration_ms": 344.8
+      },
+      {
+        "question": "What does questionable mean on an injury report?",
+        "expected_documents": [
+          "injury-report-designations"
+        ],
+        "retrieved_documents": [
+          "injury-report-designations",
+          "injury-report-designations",
+          "injury-report-designations",
+          "injury-report-designations",
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6799,
+        "duration_ms": 315.4
+      },
+      {
+        "question": "What is the difference between DNP and LP practice participation?",
+        "expected_documents": [
+          "injury-report-designations"
+        ],
+        "retrieved_documents": [
+          "injury-report-designations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5658,
+        "duration_ms": 247.6
+      },
+      {
+        "question": "What does injured reserve mean?",
+        "expected_documents": [
+          "roster-designations"
+        ],
+        "retrieved_documents": [
+          "roster-designations",
+          "glossary-abbreviations",
+          "roster-designations",
+          "injury-report-designations",
+          "roster-designations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7122,
+        "duration_ms": 278.9
+      },
+      {
+        "question": "What is the physically unable to perform list?",
+        "expected_documents": [
+          "roster-designations"
+        ],
+        "retrieved_documents": [
+          "roster-designations",
+          "roster-designations",
+          "glossary-abbreviations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6466,
+        "duration_ms": 245.7
+      },
+      {
+        "question": "What is a practice squad elevation?",
+        "expected_documents": [
+          "roster-designations"
+        ],
+        "retrieved_documents": [
+          "roster-designations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7888,
+        "duration_ms": 226.9
+      },
+      {
+        "question": "What is a slot receiver?",
+        "expected_documents": [
+          "positions-and-roles"
+        ],
+        "retrieved_documents": [
+          "positions-and-roles",
+          "positions-and-roles"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.679,
+        "duration_ms": 220.3
+      },
+      {
+        "question": "What is a bell-cow running back?",
+        "expected_documents": [
+          "positions-and-roles"
+        ],
+        "retrieved_documents": [
+          "positions-and-roles"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6359,
+        "duration_ms": 238.2
+      },
+      {
+        "question": "Why does this platform count last N games instead of last N weeks?",
+        "expected_documents": [
+          "analytics-conventions"
+        ],
+        "retrieved_documents": [
+          "analytics-conventions",
+          "data-limitations",
+          "analytics-conventions",
+          "season-structure",
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.7648,
+        "duration_ms": 221.1
+      },
+      {
+        "question": "Why are null fields omitted instead of set to zero?",
+        "expected_documents": [
+          "analytics-conventions"
+        ],
+        "retrieved_documents": [
+          "analytics-conventions"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6243,
+        "duration_ms": 235.4
+      },
+      {
+        "question": "What is a GSIS identifier?",
+        "expected_documents": [
+          "analytics-conventions",
+          "data-model-notes"
+        ],
+        "retrieved_documents": [
+          "data-model-notes",
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6618,
+        "duration_ms": 244.6
+      },
+      {
+        "question": "What happened to the Oakland Raiders team abbreviation?",
+        "expected_documents": [
+          "data-model-notes"
+        ],
+        "retrieved_documents": [
+          "data-model-notes"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6263,
+        "duration_ms": 220.8
+      },
+      {
+        "question": "How current is the structured statistical data?",
+        "expected_documents": [
+          "data-limitations"
+        ],
+        "retrieved_documents": [
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5644,
+        "duration_ms": 216.6
+      },
+      {
+        "question": "What data does this platform not have?",
+        "expected_documents": [
+          "data-limitations"
+        ],
+        "retrieved_documents": [
+          "data-limitations"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.6933,
+        "duration_ms": 252.4
+      },
+      {
+        "question": "When should the assistant use web retrieval instead of analytics?",
+        "expected_documents": [
+          "evidence-policy",
+          "retrieval-routing"
+        ],
+        "retrieved_documents": [
+          "retrieval-routing"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5399,
+        "duration_ms": 237.7
+      },
+      {
+        "question": "What kinds of evidence does this assistant distinguish?",
+        "expected_documents": [
+          "evidence-policy",
+          "retrieval-routing"
+        ],
+        "retrieved_documents": [
+          "retrieval-routing",
+          "evidence-policy",
+          "evidence-policy"
+        ],
+        "hit_at_1": true,
+        "hit_at_3": true,
+        "hit_at_5": true,
+        "rank": 1,
+        "top_score": 0.5063,
+        "duration_ms": 240.8
+      }
+    ],
+    "negative_controls": [
+      {
+        "question": "How many passing yards did Patrick Mahomes have in 2024?",
+        "reason": "A statistic. Belongs to the analytics tools.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      },
+      {
+        "question": "Which team won the game last Sunday?",
+        "reason": "A result. Belongs to the analytics tools.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      },
+      {
+        "question": "Is Travis Kelce playing this week?",
+        "reason": "Current information. Belongs to web retrieval.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      },
+      {
+        "question": "What were the Buffalo Bills' rushing yards per game last season?",
+        "reason": "A statistic. Belongs to the analytics tools.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      },
+      {
+        "question": "Who did the Chiefs trade for at the deadline this year?",
+        "reason": "Current information. Belongs to web retrieval.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      },
+      {
+        "question": "What is the capital of France?",
+        "reason": "Entirely outside the corpus and outside the domain.",
+        "returned": 0,
+        "correctly_empty": true,
+        "top_score": null
+      }
+    ]
+  },
+  "web": {
+    "suite": "web",
+    "summary": {
+      "provider": "tavily",
+      "queries": 5,
+      "queries_with_results": 5,
+      "provenance_complete_rate": 1.0,
+      "publication_date_coverage": 0.8,
+      "median_latency_ms": 1000.1,
+      "estimated_credits": 5
+    },
+    "results": [
+      {
+        "query": "NFL injury report this week",
+        "recency_days": 7,
+        "error": null,
+        "result_count": 5,
+        "provenance_complete": true,
+        "with_publication_date": 5,
+        "quality_domain_share": 0.4,
+        "domains": [
+          "cbssports.com",
+          "nbcsports.com",
+          "nytimes.com",
+          "prizepicks.com",
+          "seahawks.com"
+        ],
+        "dropped": 0,
+        "injection_flags": 0,
+        "duration_ms": 1000.1
+      },
+      {
+        "query": "NFL trade news",
+        "recency_days": 7,
+        "error": null,
+        "result_count": 5,
+        "provenance_complete": true,
+        "with_publication_date": 5,
+        "quality_domain_share": 0.4,
+        "domains": [
+          "bleacherreport.com",
+          "cbssports.com",
+          "nfl.com",
+          "nfltraderumors.co"
+        ],
+        "dropped": 0,
+        "injection_flags": 0,
+        "duration_ms": 842.6
+      },
+      {
+        "query": "NFL depth chart changes",
+        "recency_days": 14,
+        "error": null,
+        "result_count": 5,
+        "provenance_complete": true,
+        "with_publication_date": 5,
+        "quality_domain_share": 0.6,
+        "domains": [
+          "espn.com",
+          "fftoday.com",
+          "heavy.com",
+          "pff.com"
+        ],
+        "dropped": 0,
+        "injection_flags": 0,
+        "duration_ms": 1940.4
+      },
+      {
+        "query": "NFL coach press conference quotes",
+        "recency_days": 7,
+        "error": null,
+        "result_count": 5,
+        "provenance_complete": true,
+        "with_publication_date": 5,
+        "quality_domain_share": 0.2,
+        "domains": [
+          "foxnews.com",
+          "giants.com",
+          "iuhoosiers.com",
+          "msuspartans.com",
+          "si.com"
+        ],
+        "dropped": 0,
+        "injection_flags": 0,
+        "duration_ms": 838.2
+      },
+      {
+        "query": "zzzqqq nonexistent nfl player xyzzy plugh 1823",
+        "recency_days": null,
+        "error": null,
+        "result_count": 5,
+        "provenance_complete": true,
+        "with_publication_date": 0,
+        "quality_domain_share": 0.2,
+        "domains": [
+          "facebook.com",
+          "nfl.com",
+          "tiktok.com",
+          "youtube.com"
+        ],
+        "dropped": 0,
+        "injection_flags": 0,
+        "duration_ms": 1681.0
+      }
+    ]
+  },
+  "routing": {
+    "suite": "routing",
+    "summary": {
+      "model": "gpt-4.1",
+      "prompt_version": "analyst_v2",
+      "questions": 14,
+      "errors": 0,
+      "routing_accuracy": 0.9231,
+      "routing_questions_scored": 13,
+      "over_retrieval_rate": 0.0,
+      "grounding_rate": 1.0,
+      "citation_validity_rate": 1.0,
+      "abstention_rate": 1.0,
+      "total_web_searches": 4,
+      "total_tokens": 193582,
+      "total_cost_usd": 0.399728,
+      "median_latency_ms": 26291.2
+    },
+    "results": [
+      {
+        "question": "How many passing yards did Patrick Mahomes have in 2024?",
+        "expected_sources": [
+          "structured"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "get_player_stats"
+        ],
+        "duration_ms": 2213.3,
+        "total_tokens": 12356,
+        "estimated_cost_usd": 0.025036,
+        "answer": "Patrick Mahomes had 4,607 passing yards in the 2024 NFL season (covering all games played that year)."
+      },
+      {
+        "question": "How did the Kansas City Chiefs defence perform in 2024?",
+        "expected_sources": [
+          "structured"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "get_team_stats"
+        ],
+        "duration_ms": 2451.6,
+        "total_tokens": 12219,
+        "estimated_cost_usd": 0.02514,
+        "answer": "In the 2024 season, the Kansas City Chiefs defense allowed an average of 256.0 passing yards and 147.25 rushing yards per game, totaling 403.25 yards allowed per game. They gave up an average of 2.0 passing touchdowns and 1.25 rushing touchdowns per game, for a total of 3.25 touchdowns allowed per game. These numbers reflect their defensive performance over the 2024 season."
+      },
+      {
+        "question": "Compare Patrick Mahomes and Josh Allen over their last five games of 2024.",
+        "expected_sources": [
+          "structured"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "compare_players"
+        ],
+        "duration_ms": 17387.2,
+        "total_tokens": 19131,
+        "estimated_cost_usd": 0.039648,
+        "answer": "Over their last five games of the 2024 season:\n\n- Patrick Mahomes (KC) averaged 251.8 passing yards, 1.8 passing touchdowns, 0.4 interceptions, 25.4 rushing yards, and 0.6 rushing touchdowns per game. He totaled 115.06 fantasy points (23.0 per game).\n- Josh Allen (BUF) averaged 194.4 passing yards, 1.4 passing touchdowns, 0.2 interceptions, 30.4 rushing yards, and 0.6 rushing touchdowns per game. He totaled 100.08 fantasy points (20.0 per game).\n\nMahomes had the edge in passing production and fantasy points, while Allen contributed slightly more on the ground. Both quarterbacks scored 3 rushing touchdowns in this span."
+      },
+      {
+        "question": "What were Josh Allen's rushing touchdowns in the 2024 regular season?",
+        "expected_sources": [
+          "structured"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "get_player_stats"
+        ],
+        "duration_ms": 37401.4,
+        "total_tokens": 18749,
+        "estimated_cost_usd": 0.038086,
+        "answer": "Josh Allen (Buffalo Bills quarterback) scored 12 rushing touchdowns in the 2024 regular season. This total is based on 16 regular season games."
+      },
+      {
+        "question": "What does PPR scoring mean?",
+        "expected_sources": [
+          "knowledge_base"
+        ],
+        "sources_used": [
+          "knowledge_base"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [
+          "27",
+          "2026"
+        ],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 1,
+        "tools_used": [
+          "search_knowledge_base"
+        ],
+        "duration_ms": 25066.7,
+        "total_tokens": 12774,
+        "estimated_cost_usd": 0.026388,
+        "answer": "PPR scoring stands for \"points per reception.\" In this fantasy football format, every catch a player makes is worth one additional point on top of the standard scoring values. This system increases the value of players who catch a lot of passes, such as high-volume receivers and pass-catching running backs.\n\nFor example, a slot receiver with ten catches for sixty yards would score six points in standard scoring, but sixteen points in PPR\u2014nearly three times as much for the same game.\n\nThis information is from the fantasy scoring formats reference, updated as of September 27, 2026."
+      },
+      {
+        "question": "What is target share?",
+        "expected_sources": [
+          "knowledge_base"
+        ],
+        "sources_used": [],
+        "routing_ok": false,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [],
+        "duration_ms": 1229.2,
+        "total_tokens": 6030,
+        "estimated_cost_usd": 0.012618,
+        "answer": "Target share is the percentage of a team's total pass attempts that are directed to a specific player. It measures how much of the passing game workload a player receives compared to their teammates. This metric is commonly used in fantasy football and NFL analysis to evaluate a player's involvement and opportunity in their team's offense. \n\nIf you need the exact definition as used by this platform or want to know how it is calculated here, let me know and I can retrieve the official reference."
+      },
+      {
+        "question": "What does a questionable injury designation mean?",
+        "expected_sources": [
+          "knowledge_base"
+        ],
+        "sources_used": [
+          "knowledge_base"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [
+          "50%"
+        ],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 1,
+        "tools_used": [
+          "search_knowledge_base"
+        ],
+        "duration_ms": 36063.3,
+        "total_tokens": 12612,
+        "estimated_cost_usd": 0.02583,
+        "answer": "A \"questionable\" injury designation means a player's status for the upcoming game is uncertain. The NFL describes this as roughly a 50% chance to play, but in practice, questionable players tend to play more often than not. The final decision is confirmed when the team's inactive list is published shortly before kickoff.\n\n(Source: NFL injury report designations, updated 2026-09-27)"
+      },
+      {
+        "question": "Why does this platform use last N games rather than last N weeks?",
+        "expected_sources": [
+          "knowledge_base"
+        ],
+        "sources_used": [
+          "knowledge_base"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 1,
+        "tools_used": [
+          "search_knowledge_base"
+        ],
+        "duration_ms": 25883.1,
+        "total_tokens": 12814,
+        "estimated_cost_usd": 0.026612,
+        "answer": "This platform uses \"last N games\" rather than \"last N weeks\" because counting games ensures that statistics reflect actual player participation. If a player has a bye week, is inactive, or is traded mid-season, \"the last four weeks\" might include fewer than four games for that player, leading to misleading averages. By counting games, the platform avoids dividing by the wrong number and ensures per-game figures are accurate.\n\nIf you want statistics for specific week numbers, you can use an explicit weeks filter instead. This approach is deliberate to avoid errors that look plausible but are incorrect. (Source: Analytics Conventions in This Platform, updated 2026-09-27)"
+      },
+      {
+        "question": "What is Patrick Mahomes' current injury status?",
+        "expected_sources": [
+          "web"
+        ],
+        "sources_used": [
+          "web"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [
+          "26",
+          "2026",
+          "3",
+          "23"
+        ],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": true,
+        "expects_abstention": false,
+        "web_searches": 1,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "search_web"
+        ],
+        "duration_ms": 28330.1,
+        "total_tokens": 14271,
+        "estimated_cost_usd": 0.029388,
+        "answer": "Patrick Mahomes is currently active and expected to play. According to Bleacher Report (published September 26, 2026), Mahomes is back and has shown no negative effects from last year's injury, performing well so far this season. Additionally, Arrowhead Addict's Week 3 injury report (published September 23, 2026) lists Mahomes with a knee issue but notes he was a full participant in practice, indicating he is healthy enough to play.\n\nThere are no recent reports suggesting Mahomes will miss any time or is limited for the upcoming game."
+      },
+      {
+        "question": "What is the latest news about the Kansas City Chiefs?",
+        "expected_sources": [
+          "web"
+        ],
+        "sources_used": [
+          "web"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [
+          "1",
+          "25",
+          "2026",
+          "2",
+          "23",
+          "3",
+          "5"
+        ],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 1,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "search_web"
+        ],
+        "duration_ms": 28268.0,
+        "total_tokens": 13535,
+        "estimated_cost_usd": 0.028786,
+        "answer": "Here are the latest news updates about the Kansas City Chiefs:\n\n1. According to Arrowhead Pride (published September 25, 2026), the Chiefs are looking like their old selves with new help, and there is mention of a former Chiefs quarterback now playing football in Canada. The article also highlights notable quotes from head coach Andy Reid following the team's Week 2 win.\n\n2. AtoZ Sports (published September 23, 2026) reports that head coach Andy Reid provided key injury updates ahead of Week 3. LT Josh Simmons (back) and SS Chamarri Conner (knee) have missed the first two weeks due to injury, but one of them is set to return to practice. Defensive tackle Omarr Norman-Lott, who suffered an ACL tear last season, is eligible to return to practice but is not expected back until after the Week 5 bye.\n\n3. Chiefs.com (published September 23, 2026) provides details on the upcoming Week 3 matchup against the Miami Dolphins, as well as information about new Chiefs draft picks, including WR Cyrus Allen, RB Emmett Johnson, and DB Jadon Canady.\n\nIf you need more specific details about injuries, roster moves, or the upcoming game, let me know!"
+      },
+      {
+        "question": "Has there been any NFL trade news this week?",
+        "expected_sources": [
+          "web"
+        ],
+        "sources_used": [
+          "web"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [
+          "23",
+          "2026"
+        ],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 1,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "search_web"
+        ],
+        "duration_ms": 26699.4,
+        "total_tokens": 14152,
+        "estimated_cost_usd": 0.029264,
+        "answer": "There have not been any major NFL trades reported this week, according to recent news sources. However, several players are being discussed as potential trade candidates, including Kyler Murray, Calvin Ridley, Josh Uche, Kayvon Thibodeaux, and Solomon Thomas, as reported by FanSided and Bleacher Report (published September 23, 2026). These articles focus on speculation and possible moves rather than confirmed trades.\n\nNo official or high-profile trades have been confirmed in the past week based on the latest available news. If you are looking for a specific team or player, let me know and I can check for more targeted updates."
+      },
+      {
+        "question": "Should I start Patrick Mahomes or Josh Allen this week?",
+        "expected_sources": [
+          "structured",
+          "web"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": false,
+        "expects_abstention": false,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "compare_fantasy_players"
+        ],
+        "duration_ms": 38155.7,
+        "total_tokens": 18935,
+        "estimated_cost_usd": 0.039148,
+        "answer": "Based on the last 2 games of the 2026 season, Josh Allen has outperformed Patrick Mahomes in fantasy production (PPR scoring):\n\n- Josh Allen (BUF): Averaged 38.24 points per game (best: 40.82, worst: 35.66)\n- Patrick Mahomes (KC): Averaged 25.32 points per game (best: 28.98, worst: 21.66)\n\nAllen has a higher ceiling and has been more consistent recently. Unless there are injury or matchup concerns, I recommend starting Josh Allen this week based on recent performance. If you want to factor in opponent defenses or injury status, let me know!"
+      },
+      {
+        "question": "What is Travis Kelce's recent production and is he healthy right now?",
+        "expected_sources": [
+          "structured",
+          "web"
+        ],
+        "sources_used": [
+          "structured",
+          "web"
+        ],
+        "routing_ok": true,
+        "routing_scored": true,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": true,
+        "expects_abstention": false,
+        "web_searches": 1,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "get_player_stats",
+          "get_player_injuries",
+          "search_web"
+        ],
+        "duration_ms": 27857.8,
+        "total_tokens": 13968,
+        "estimated_cost_usd": 0.02931,
+        "answer": "Travis Kelce's recent production over his last 2 games in the 2026 season is strong: he has 16 targets, 12 receptions, 172 receiving yards, and 1 touchdown. This averages to 6 receptions, 86 yards, and 0.5 touchdowns per game.\n\nRegarding his health, there are no reported injuries for Travis Kelce in the official injury data for this season. Recent web searches also do not mention any current injury concerns for him\u2014there is no indication from recent news that he is dealing with an injury.\n\nIn summary: Travis Kelce is producing at a high level and appears to be healthy right now."
+      },
+      {
+        "question": "How many receiving yards did a player named Zzyzx Nonexistent have in 2024?",
+        "expected_sources": [
+          "structured"
+        ],
+        "sources_used": [
+          "structured"
+        ],
+        "routing_ok": true,
+        "routing_scored": false,
+        "over_retrieved": false,
+        "grounded": true,
+        "ungrounded_numbers": [],
+        "numbers_from_unstructured": [],
+        "citations_valid": true,
+        "fabricated_sources": [],
+        "abstained": true,
+        "expects_abstention": true,
+        "web_searches": 0,
+        "knowledge_searches": 0,
+        "tools_used": [
+          "search_players"
+        ],
+        "duration_ms": 24235.3,
+        "total_tokens": 12036,
+        "estimated_cost_usd": 0.024474,
+        "answer": "There is no player named Zzyzx Nonexistent who played in the 2024 NFL season, so there are no receiving yards recorded for that name. If you meant a different player, please provide more details."
+      }
+    ]
+  }
+}

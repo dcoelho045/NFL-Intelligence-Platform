@@ -18,9 +18,12 @@ from typing import Any
 from nfl_platform.exceptions import (
     AmbiguousPlayerError,
     DatasetNotAvailableError,
+    EmbeddingError,
     InvalidGameCountError,
     InvalidSeasonError,
     InvalidWeekError,
+    KnowledgeIndexStaleError,
+    KnowledgeIndexUnavailableError,
     NflPlatformError,
     PlayerNotFoundError,
     SchemaValidationError,
@@ -28,6 +31,9 @@ from nfl_platform.exceptions import (
     UnknownDatasetError,
     UnknownToolError,
     UnresolvedPlayersError,
+    WebSearchBudgetExceededError,
+    WebSearchError,
+    WebSearchNotConfiguredError,
 )
 
 # How many disambiguation candidates to show the model. Enough to choose from,
@@ -216,6 +222,84 @@ def _value_error(exc: ValueError) -> ToolErrorDetail:
     )
 
 
+def _web_search_not_configured(exc: WebSearchNotConfiguredError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "web_search_not_configured",
+        str(exc),
+        recovery=(
+            "Web retrieval is switched off on this deployment. Do not retry and do not "
+            "substitute remembered news. Answer from the analytics tools if the question "
+            "allows it, and tell the user that current external information is unavailable."
+        ),
+        retryable=False,
+    )
+
+
+def _web_search_failed(exc: WebSearchError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "web_search_error",
+        str(exc),
+        recovery=(
+            "The search provider could not be reached. Do not invent news or injury status. "
+            "Answer with what the analytics tools provide and say the current information "
+            "could not be retrieved."
+        ),
+        context={"provider": exc.provider},
+        retryable=exc.retryable,
+    )
+
+
+def _web_search_budget(exc: WebSearchBudgetExceededError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "web_search_budget_exhausted",
+        str(exc),
+        recovery=(
+            "No further web searches are available for this question. Answer using the "
+            "evidence already retrieved and state what remains unknown."
+        ),
+        context={"limit": exc.limit},
+        retryable=False,
+    )
+
+
+def _knowledge_index_unavailable(exc: KnowledgeIndexUnavailableError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "knowledge_base_unavailable",
+        str(exc),
+        recovery=(
+            "The local knowledge base is not built on this deployment. Do not retry. "
+            "You may explain general football terminology from your own knowledge, but "
+            "say plainly that it is not sourced from the knowledge base."
+        ),
+        retryable=False,
+    )
+
+
+def _knowledge_index_stale(exc: KnowledgeIndexStaleError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "knowledge_base_unavailable",
+        str(exc),
+        recovery=(
+            "The knowledge base needs rebuilding and cannot be searched. Do not retry. "
+            "Tell the user this capability is unavailable."
+        ),
+        retryable=False,
+    )
+
+
+def _embedding_failed(exc: EmbeddingError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "knowledge_base_unavailable",
+        str(exc),
+        recovery=(
+            "The knowledge base could not process the query. Do not retry the same search. "
+            "Answer from other evidence and note the gap."
+        ),
+        context={"provider": exc.provider},
+        retryable=False,
+    )
+
+
 def _platform_error(exc: NflPlatformError) -> ToolErrorDetail:
     return ToolErrorDetail(
         "internal_error",
@@ -238,6 +322,12 @@ _HANDLERS: tuple[tuple[type[Exception], Callable[[Any], ToolErrorDetail]], ...] 
     (DatasetNotAvailableError, _dataset_unavailable),
     (UnknownDatasetError, _unknown_dataset),
     (SchemaValidationError, _schema_validation),
+    (WebSearchNotConfiguredError, _web_search_not_configured),
+    (WebSearchBudgetExceededError, _web_search_budget),
+    (WebSearchError, _web_search_failed),
+    (KnowledgeIndexStaleError, _knowledge_index_stale),
+    (KnowledgeIndexUnavailableError, _knowledge_index_unavailable),
+    (EmbeddingError, _embedding_failed),
     (NflPlatformError, _platform_error),
     (ValueError, _value_error),
 )

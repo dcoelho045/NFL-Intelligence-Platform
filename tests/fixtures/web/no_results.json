@@ -1,0 +1,5 @@
+{
+  "_comment": "A provider returning nothing. Distinct from a failure: the search worked and found nothing.",
+  "query": "did the kansas city chiefs sign a left-handed punter from belgium this week",
+  "results": []
+}

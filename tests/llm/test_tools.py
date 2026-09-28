@@ -36,6 +36,8 @@ TOOL_CALLS: list[tuple[str, dict[str, object]]] = [
     ("get_fantasy_matchup_context", {"player": MAHOMES_ID, "opponent": OPPONENT}),
     ("compare_fantasy_players", {"players": [MAHOMES_ID, ALLEN_ID]}),
     ("list_reference_data", {}),
+    ("search_web", {"query": "Patrick Mahomes injury status"}),
+    ("search_knowledge_base", {"query": "what does PPR scoring mean"}),
 ]
 
 

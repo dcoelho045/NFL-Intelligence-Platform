@@ -192,19 +192,60 @@ curl -X POST http://127.0.0.1:8000/api/v1/assistant/ask \
       "arguments": { "player": "00-0033873", "last_n_games": 3 }
     }
   ],
+  "sources": [{ "kind": "structured", "label": "get_player_stats" }],
   "stats": {
     "model": "gpt-4.1",
-    "prompt_version": "analyst_v1",
+    "prompt_version": "analyst_v2",
     "iterations": 2,
     "stop_reason": "completed",
     "duration_ms": 4120.5,
     "total_tokens": 3908,
     "estimated_cost_usd": 0.0421,
     "tools_used": ["get_player_stats"],
-    "ungrounded_numbers": []
+    "ungrounded_numbers": [],
+    "numbers_from_unstructured_sources": [],
+    "fabricated_sources": [],
+    "retrieval": {
+      "web_searches": 0,
+      "web_cache_hits": 0,
+      "web_results": 0,
+      "web_results_dropped": 0,
+      "knowledge_searches": 0,
+      "knowledge_hits": 0
+    }
   }
 }
 ```
+
+A question that uses retrieval returns richer sources:
+
+```json
+{
+  "sources": [
+    { "kind": "structured", "label": "get_player_stats" },
+    {
+      "kind": "web",
+      "label": "Chiefs QB listed as full participant",
+      "url": "https://www.espn.com/nfl/story/_/id/.../practice-report",
+      "domain": "espn.com",
+      "published_at": "2026-09-25T14:00:00+00:00",
+      "retrieved_at": "2026-09-27T09:12:44+00:00"
+    },
+    {
+      "kind": "knowledge_base",
+      "label": "Injury Report Designations",
+      "document_id": "injury-report-designations",
+      "updated": "2026-09-27"
+    }
+  ]
+}
+```
+
+Null fields are omitted. `sources` is built from the run trace, not written by
+the model, so the assistant cannot cite a source it did not retrieve.
+`numbers_from_unstructured_sources` lists figures traceable only to retrieved
+text rather than to the analytics layer — see
+[rag-design.md](rag-design.md#grounding-three-buckets).
 
 Three fields make the answer checkable rather than merely plausible:
 

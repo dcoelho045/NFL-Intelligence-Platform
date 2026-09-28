@@ -10,18 +10,28 @@ tools and synthesise an answer, never to recall a statistic.
 
 ## Status
 
-| Milestone | Scope                                                       | Status      |
-| --------- | ----------------------------------------------------------- | ----------- |
-| 1         | NFL data foundation (`nflreadpy` + Polars)                  | Complete    |
-| 2         | Analytics service layer + FastAPI                           | Complete    |
-| 3         | LLM tool calling                                            | Complete    |
-| 4-11      | RAG, MCP, ML, agents, evaluation, observability, A2A, CI/CD | Not started |
+| Milestone | Scope                                                  | Status      |
+| --------- | ------------------------------------------------------ | ----------- |
+| 1         | NFL data foundation (`nflreadpy` + Polars)             | Complete    |
+| 2         | Analytics service layer + FastAPI                      | Complete    |
+| 3         | LLM tool calling                                       | Complete    |
+| 4         | Web retrieval + lightweight local RAG                  | Complete    |
+| 5-11      | MCP, ML, agents, evaluation, observability, A2A, CI/CD | Not started |
 
 The assistant added in Milestone 3 cannot compute a statistic: the `openai` SDK
-is importable only in `llm/providers/`, the `llm/` package may not import the
-analytics or data layers, and every number in an answer is checked against the
-tool results that produced it — all enforced by
-[tests/architecture/test_layering.py](tests/architecture/test_layering.py).
+is importable only in `llm/providers/` and `retrieval/providers/`, the `llm/`
+package may not import the analytics, data or retrieval layers, and every number
+in an answer is checked against the tool results that produced it — all enforced
+by [tests/architecture/test_layering.py](tests/architecture/test_layering.py).
+
+Milestone 4 adds two more evidence sources without weakening that. Web search
+covers anything current (injuries, transactions, news); a small curated corpus
+covers stable knowledge (scoring formats, metric definitions, this project's own
+methodology). Statistics still come only from the deterministic analytics layer,
+and the grounding check now distinguishes numbers traceable to it from numbers
+found only in retrieved prose. Retrieved web content is treated as untrusted
+input, and there is deliberately no tool that fetches a URL the model chose. See
+[docs/rag-design.md](docs/rag-design.md).
 
 ## Requirements
 
@@ -45,6 +55,12 @@ python -m pip install -e ".[dev]"
 
 # 4. Create a local environment file
 Copy-Item .env.example .env
+# Add OPENAI_API_KEY (assistant + embeddings) and TAVILY_API_KEY (web search).
+# Both are optional: without them the analytics API still works, and the
+# assistant reports the missing capability instead of failing.
+
+# 5. Build the local knowledge index (costs about $0.0002)
+python scripts/build_knowledge_index.py
 ```
 
 On macOS/Linux, substitute `python3.12 -m venv .venv` and
@@ -214,8 +230,12 @@ mypy src
 src/nfl_platform/
   api/         FastAPI adapter: routers, DI, error mapping
   llm/         tool-calling assistant: agent loop, tools, prompts, tracing
-    providers/ the only place an LLM SDK may be imported
-  services/    OOP analytics services - the stable interface
+    providers/ the chat SDK adapter
+  retrieval/   web search and local RAG - a peer of analytics/
+    web/       provider Protocol, Tavily and Brave adapters, cache, policy
+    knowledge/ corpus loading, chunking, embeddings, Parquet vector store
+    providers/ the embeddings SDK adapter
+  services/    OOP analytics and retrieval services - the stable interface
   schemas/     Pydantic DTOs - the typed contract
   analytics/   deterministic, LLM-free computation
   data/
@@ -224,14 +244,15 @@ src/nfl_platform/
   config/      settings (pydantic-settings) and structured logging
   domain.py    identifier and season/week validation
   exceptions.py
-scripts/       fixture generation, LLM benchmark
+data/knowledge/ the curated RAG corpus (15 markdown documents, committed)
+scripts/       fixture generation, LLM benchmark, index build, retrieval benchmark
 tests/
-  fixtures/    small committed Parquet fixtures with real nflverse schemas
-docs/          architecture, API reference, LLM boundary, data documentation
+  fixtures/    committed Parquet fixtures, recorded web payloads, a test corpus
+docs/          architecture, API reference, LLM boundary, RAG design, data docs
 ```
 
-Dependencies flow strictly downward: `api → services → analytics → data`, with
-`llm` a sibling of `api` that also stops at `services`.
+Dependencies flow strictly downward: `api → services → {analytics, retrieval} →
+data`, with `llm` a sibling of `api` that also stops at `services`.
 [tests/architecture/test_layering.py](tests/architecture/test_layering.py)
 enforces this.
 

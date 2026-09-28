@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from nfl_platform.schemas.common import BaseDTO
+from nfl_platform.schemas.evidence import SourceRef
 
 MAX_QUESTION_LENGTH = 1000
 MAX_HISTORY_TURNS = 20
@@ -51,6 +52,19 @@ class EvidenceItem(BaseDTO):
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
+class RetrievalStatsDTO(BaseDTO):
+    """What retrieval cost this run, in units the token counters do not cover."""
+
+    web_searches: int = 0
+    web_cache_hits: int = 0
+    web_results: int = 0
+    web_results_dropped: int = Field(
+        default=0, description="Results removed by domain policy or injection filtering."
+    )
+    knowledge_searches: int = 0
+    knowledge_hits: int = 0
+
+
 class AssistantRunStats(BaseDTO):
     """Latency, token, and cost information for one answered question."""
 
@@ -67,10 +81,23 @@ class AssistantRunStats(BaseDTO):
     ungrounded_numbers: list[str] = Field(
         default_factory=list,
         description=(
-            "Numbers in the answer that could not be traced to a tool result. "
+            "Numbers in the answer that could not be traced to any source. "
             "Reported for inspection; a non-empty list warrants scrutiny."
         ),
     )
+    numbers_from_unstructured_sources: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Numbers traceable only to retrieved web or knowledge-base text, not to the "
+            "deterministic analytics layer. These should be attributed to their source "
+            "rather than stated as retrieved statistics."
+        ),
+    )
+    fabricated_sources: list[str] = Field(
+        default_factory=list,
+        description="URLs or domains cited in the answer that no tool actually returned.",
+    )
+    retrieval: RetrievalStatsDTO = Field(default_factory=RetrievalStatsDTO)
 
 
 class AssistantAnswerResponse(BaseDTO):
@@ -78,6 +105,13 @@ class AssistantAnswerResponse(BaseDTO):
 
     answer: str
     evidence: list[EvidenceItem] = Field(default_factory=list)
+    sources: list[SourceRef] = Field(
+        default_factory=list,
+        description=(
+            "Every source that contributed, labelled by kind. Derived from the run "
+            "trace, so the assistant cannot cite something it did not retrieve."
+        ),
+    )
     stats: AssistantRunStats
 
 

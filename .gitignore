@@ -51,7 +51,10 @@ dmypy.json
 .hypothesis/
 
 # ---- Project data caches (large nflverse downloads) ----
-data/
+# data/* rather than data/, because git cannot re-include a file whose parent
+# directory is excluded, and the curated knowledge corpus lives under data/.
+data/*
+!data/knowledge/
 !tests/fixtures/
 .cache/
 *.parquet

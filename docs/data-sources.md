@@ -2,6 +2,18 @@
 
 Every dataset this project consumes, why it is included, and what it costs.
 
+There are three, and they do not overlap:
+
+| Source                                    | Answers                | Authoritative for   |
+| ----------------------------------------- | ---------------------- | ------------------- |
+| nflverse (below)                          | what happened in games | every NFL statistic |
+| Web search (Tavily)                       | what is true now       | current information |
+| Local knowledge corpus (`data/knowledge`) | what the words mean    | definitions, rules  |
+
+The latter two arrived in Milestone 4 and are documented in
+[rag-design.md](rag-design.md). Statistics are never retrieved; retrieved text
+is never treated as a statistic.
+
 ## Upstream provider
 
 All data comes from [nflverse](https://github.com/nflverse) via the

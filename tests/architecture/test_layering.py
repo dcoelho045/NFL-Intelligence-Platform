@@ -42,11 +42,22 @@ FORBIDDEN_PACKAGES = frozenset(
     }
 )
 
-# Milestone 3 introduces exactly one LLM SDK, confined to one package. Keeping it
-# quarantined is what lets the rest of src/ stay provably free of model calls and
-# keeps swapping providers a single-directory change.
+# Milestone 3 introduces exactly one LLM SDK. Milestone 4 uses it for a second
+# purpose (embeddings) from a layer that must not import upward into llm/, so the
+# rule is now "vendor SDK calls live in an enumerated set of provider packages"
+# rather than "one package". The property that matters is unchanged: every file
+# that can send text to a vendor can be listed.
 PROVIDER_ONLY_PACKAGES = frozenset({"openai"})
-PROVIDER_PACKAGE = "llm/providers"
+PROVIDER_PACKAGES = ("llm/providers", "retrieval/providers")
+
+# Milestone 4 adds web retrieval. The HTTP client is quarantined the same way:
+# only the search adapters may speak to the network, so "which code can make an
+# outbound request" stays answerable by listing two files.
+HTTP_CLIENT_PACKAGES = frozenset({"httpx", "requests", "urllib3", "aiohttp"})
+HTTP_ALLOWED_MODULES = (
+    "retrieval/web/tavily.py",
+    "retrieval/web/brave.py",
+)
 
 
 def _module_files(package: str) -> list[Path]:
@@ -140,21 +151,22 @@ class TestNoPrematureDependencies:
 
 
 class TestLlmSdkIsQuarantined:
-    """The model SDK lives in one package; nothing else may call a model."""
+    """The model SDK lives in enumerated packages; nothing else may call a model."""
 
     @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
-    def test_only_the_provider_package_imports_an_llm_sdk(self, path: Path):
+    def test_only_the_provider_packages_import_an_llm_sdk(self, path: Path):
         offenders = _imported_roots(path) & PROVIDER_ONLY_PACKAGES
-        if PROVIDER_PACKAGE in path.as_posix():
+        if any(package in path.as_posix() for package in PROVIDER_PACKAGES):
             return
         assert not offenders, (
             f"{path.relative_to(SRC).as_posix()} imports {sorted(offenders)}; "
-            f"LLM SDK calls belong in {PROVIDER_PACKAGE}/"
+            f"LLM SDK calls belong in {' or '.join(PROVIDER_PACKAGES)}/"
         )
 
-    def test_the_provider_package_actually_exists(self):
-        """Guard against the rule passing vacuously if the package is renamed."""
-        assert (SRC / "llm" / "providers").is_dir()
+    def test_the_provider_packages_actually_exist(self):
+        """Guard against the rule passing vacuously if a package is renamed."""
+        for package in PROVIDER_PACKAGES:
+            assert (SRC / package).is_dir(), package
 
     @pytest.mark.parametrize("path", _module_files("analytics"), ids=lambda p: p.name)
     def test_analytics_never_imports_the_llm_layer(self, path: Path):
@@ -166,6 +178,34 @@ class TestLlmSdkIsQuarantined:
         """The deterministic core must stay usable with no model present."""
         offenders = {m for m in _imported_modules(path) if m.startswith("nfl_platform.llm")}
         assert not offenders, f"services/{path.name} imports the LLM layer"
+
+
+class TestHttpClientIsQuarantined:
+    """Milestone 4: exactly two files may make an outbound web request."""
+
+    @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
+    def test_only_the_search_adapters_import_an_http_client(self, path: Path):
+        offenders = _imported_roots(path) & HTTP_CLIENT_PACKAGES
+        relative = path.relative_to(SRC).as_posix()
+        if relative in HTTP_ALLOWED_MODULES:
+            return
+        assert not offenders, (
+            f"{relative} imports {sorted(offenders)}; outbound HTTP belongs in "
+            f"{', '.join(HTTP_ALLOWED_MODULES)}"
+        )
+
+    def test_the_allowed_http_modules_actually_exist(self):
+        """Guard against the rule passing vacuously if a file is renamed."""
+        for relative in HTTP_ALLOWED_MODULES:
+            assert (SRC / relative).is_file(), relative
+
+    @pytest.mark.parametrize("path", _module_files("retrieval"), ids=lambda p: p.name)
+    def test_retrieval_never_imports_an_llm_sdk(self, path: Path):
+        """Embeddings go through a Protocol; the SDK stays in retrieval/providers/."""
+        offenders = _imported_roots(path) & PROVIDER_ONLY_PACKAGES
+        if "retrieval/providers" in path.as_posix():
+            return
+        assert not offenders, f"retrieval/{path.name} imports {sorted(offenders)}"
 
 
 class TestLayerDependencyDirection:
@@ -211,23 +251,32 @@ class TestLayerDependencyDirection:
 
     @pytest.mark.parametrize("path", _module_files("api"), ids=lambda p: p.name)
     def test_api_does_not_reach_past_the_service_layer(self, path: Path):
-        """Routers must not call the data layer or analytics functions directly."""
+        """Routers must not call the data layer, analytics, or retrieval directly."""
         modules = _imported_modules(path)
         offenders = {
             module
             for module in modules
-            if module.startswith(("nfl_platform.analytics", "nfl_platform.data"))
+            if module.startswith(
+                ("nfl_platform.analytics", "nfl_platform.data", "nfl_platform.retrieval")
+            )
         }
         assert not offenders, f"api/{path.name} bypasses the service layer: {sorted(offenders)}"
 
     @pytest.mark.parametrize("path", _module_files("llm"), ids=lambda p: p.name)
     def test_llm_does_not_reach_past_the_service_layer(self, path: Path):
-        """Tools must call services, never recompute from frames themselves."""
+        """Tools must call services, never recompute from frames or retrieve directly.
+
+        The retrieval clause matters as much as the analytics one: a tool that
+        reached into ``retrieval/`` would own search policy, and search policy
+        would then be untestable without a model.
+        """
         modules = _imported_modules(path)
         offenders = {
             module
             for module in modules
-            if module.startswith(("nfl_platform.analytics", "nfl_platform.data"))
+            if module.startswith(
+                ("nfl_platform.analytics", "nfl_platform.data", "nfl_platform.retrieval")
+            )
         }
         assert not offenders, f"llm/{path.name} bypasses the service layer: {sorted(offenders)}"
 
@@ -241,6 +290,22 @@ class TestLayerDependencyDirection:
     def test_llm_never_imports_polars_or_the_web_framework(self, path: Path):
         offenders = _imported_roots(path) & {"polars", "fastapi", "starlette", "uvicorn"}
         assert not offenders, f"llm/{path.name} imports {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("retrieval"), ids=lambda p: p.name)
+    def test_retrieval_does_not_depend_on_anything_above_it(self, path: Path):
+        """retrieval sits beside analytics: services compose it, it composes nothing."""
+        modules = _imported_modules(path)
+        offenders = {
+            module
+            for module in modules
+            if module.startswith(("nfl_platform.services", "nfl_platform.api", "nfl_platform.llm"))
+        }
+        assert not offenders, f"retrieval/{path.name} imports upward: {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("retrieval"), ids=lambda p: p.name)
+    def test_retrieval_never_imports_the_web_framework(self, path: Path):
+        offenders = _imported_roots(path) & {"fastapi", "starlette", "uvicorn"}
+        assert not offenders, f"retrieval/{path.name} imports {sorted(offenders)}"
 
 
 class TestDataFramesStopAtTheServiceBoundary:
@@ -260,4 +325,16 @@ class TestDataFramesStopAtTheServiceBoundary:
                 returns = ast.unparse(node.returns) if node.returns else ""
                 assert "DataFrame" not in returns, (
                     f"services/{path.name}::{node.name} returns a DataFrame"
+                )
+
+    def test_every_retrieval_method_returns_a_typed_result(self):
+        """The vector index is Parquet-backed; the frame must not escape the module."""
+        for path in _module_files("retrieval"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                    continue
+                returns = ast.unparse(node.returns) if node.returns else ""
+                assert "DataFrame" not in returns, (
+                    f"retrieval/{path.name}::{node.name} returns a DataFrame"
                 )

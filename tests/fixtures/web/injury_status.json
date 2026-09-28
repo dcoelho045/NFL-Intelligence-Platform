@@ -1,0 +1,27 @@
+{
+  "_comment": "Real Tavily response shape, trimmed and sanitised. published_days_ago keeps the fixture from ageing.",
+  "query": "Patrick Mahomes injury status",
+  "results": [
+    {
+      "title": "Chiefs QB Patrick Mahomes listed as full participant in Wednesday practice",
+      "url": "https://www.espn.com/nfl/story/_/id/00000001/chiefs-mahomes-practice-report",
+      "content": "Kansas City Chiefs quarterback Patrick Mahomes was a full participant in Wednesday's practice, the team announced, and carries no injury designation into the weekend. Head coach Andy Reid told reporters that Mahomes 'looked like himself' and that the team expects no limitations. Mahomes had been listed on last week's report with an ankle issue but was removed from it entirely on Wednesday.",
+      "score": 0.94,
+      "published_days_ago": 2
+    },
+    {
+      "title": "Chiefs injury report: three starters limited ahead of divisional matchup",
+      "url": "https://www.nfl.com/news/chiefs-injury-report-week-update",
+      "content": "The Chiefs released their first injury report of the week. Quarterback Patrick Mahomes practiced fully. Two offensive linemen were limited, and a starting cornerback did not participate. The team has not ruled anyone out at this stage of the week; final game statuses are published on Friday.",
+      "score": 0.88,
+      "published_days_ago": 2
+    },
+    {
+      "title": "Fantasy start/sit: quarterbacks to trust this week",
+      "url": "https://www.cbssports.com/fantasy/football/news/start-sit-quarterbacks",
+      "content": "With no designation on the final report, Mahomes remains a every-week starter in all formats. Managers holding him should not be scanning the waiver wire. His supporting cast is closer to full health than at any point this season.",
+      "score": 0.71,
+      "published_days_ago": 1
+    }
+  ]
+}

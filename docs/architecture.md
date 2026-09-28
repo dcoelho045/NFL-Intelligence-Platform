@@ -13,10 +13,11 @@ graph TD
     end
     subgraph contract["Stable contract"]
         SCHEMAS["schemas/<br/>Pydantic DTOs"]
-        SERVICES["services/<br/>analytics services"]
+        SERVICES["services/<br/>analytics + retrieval services"]
     end
     subgraph core["Deterministic core"]
         ANALYTICS["analytics/<br/>pure functions"]
+        RETRIEVAL["retrieval/<br/>web search + local RAG"]
         DATA["data/<br/>loader + sources"]
         DOMAIN["domain.py, exceptions.py, config/"]
     end
@@ -27,7 +28,9 @@ graph TD
     TOOLS --> SERVICES
     SERVICES --> SCHEMAS
     SERVICES --> ANALYTICS
+    SERVICES --> RETRIEVAL
     ANALYTICS --> DATA
+    RETRIEVAL --> DOMAIN
     DATA --> DOMAIN
 ```
 
@@ -35,14 +38,20 @@ Dependencies flow strictly downward.
 [tests/architecture/test_layering.py](../tests/architecture/test_layering.py)
 asserts this mechanically, so the rule cannot quietly stop being true.
 
-| Layer        | Responsibility                     | May import                               |
-| ------------ | ---------------------------------- | ---------------------------------------- |
-| `api/`       | HTTP mapping and serialisation     | `services`, `schemas`, `llm`             |
-| `llm/`       | Tool selection and synthesis       | `services`, `schemas`, `domain`          |
-| `services/`  | Compose, validate, convert to DTOs | `analytics`, `data`, `schemas`, `domain` |
-| `schemas/`   | Typed contract                     | `domain` only                            |
-| `analytics/` | Deterministic computation          | `data`, `domain`                         |
-| `data/`      | Load and validate nflverse data    | `domain`, `config`                       |
+| Layer        | Responsibility                     | May import                                            |
+| ------------ | ---------------------------------- | ----------------------------------------------------- |
+| `api/`       | HTTP mapping and serialisation     | `services`, `schemas`, `llm`                          |
+| `llm/`       | Tool selection and synthesis       | `services`, `schemas`, `domain`                       |
+| `services/`  | Compose, validate, convert to DTOs | `analytics`, `retrieval`, `data`, `schemas`, `domain` |
+| `schemas/`   | Typed contract                     | `domain` only                                         |
+| `analytics/` | Deterministic computation          | `data`, `domain`                                      |
+| `retrieval/` | Web search and local RAG           | `schemas`, `domain`, `config`                         |
+| `data/`      | Load and validate nflverse data    | `domain`, `config`                                    |
+
+`retrieval/` is a peer of `analytics/`, not a part of `llm/`. Both are
+capabilities the service layer composes, and neither knows a model exists --
+which is what keeps the tool layer free of storage concerns and keeps retrieval
+usable without an LLM. See [rag-design.md](rag-design.md).
 
 `api/ -> llm/` is allowed; `llm/ -> api/` is not. The assistant is reachable
 _through_ HTTP but does not depend on HTTP, so the CLI and the benchmark script
@@ -191,20 +200,27 @@ serialise every request. Plain `def` lets Starlette run them in a threadpool.
 | --------------- | ---------------------------------------------------- | ----------------------------- |
 | HTTP downloads  | `nflreadpy` filesystem cache                         | configurable TTL, default 24h |
 | In-process      | `NflDataLoader` memo keyed by dataset/seasons/kwargs | process lifetime              |
+| Web search      | bounded in-process TTL cache, never written to disk  | 15 minutes, default           |
+| Knowledge index | Parquet file loaded once per process                 | until rebuilt                 |
 | Reproducibility | `SnapshotStore` Parquet + manifest                   | until deleted                 |
+
+Web results are deliberately not persisted: the cache is in-process and bounded,
+so no more third-party content is stored than a request requires.
 
 One container per process means the memo stays warm across requests.
 
 ## What is deliberately absent
 
-| Not present     | Why                                                 | Arrives in    |
-| --------------- | --------------------------------------------------- | ------------- |
-| Vector store    | No unstructured text yet                            | 4             |
-| MCP server      | Needs a stable service layer first — this one       | 5             |
-| ML models       | Needs a baseline and evaluation harness             | 6             |
-| Agent framework | One loop with no branching does not need one        | 7             |
-| PostgreSQL      | Nothing yet needs transactions or concurrent writes | when required |
-| Authentication  | Read-only public data on localhost                  | 11            |
+| Not present               | Why                                                           | Arrives in    |
+| ------------------------- | ------------------------------------------------------------- | ------------- |
+| Hosted vector database    | 97 chunks scan exactly in under a millisecond; see rag-design | if measured   |
+| Reranker / query rewriter | Retrieval hit@1 is already 1.00; nothing left to improve      | if measured   |
+| `fetch_url` tool          | Removes SSRF and the inject-a-link escalation path entirely   | if justified  |
+| MCP server                | Needs a stable service layer first — this one                 | 5             |
+| ML models                 | Needs a baseline and evaluation harness                       | 6             |
+| Agent framework           | One loop with no branching does not need one                  | 7             |
+| PostgreSQL                | Nothing yet needs transactions or concurrent writes           | when required |
+| Authentication            | Read-only public data on localhost                            | 11            |
 
 The absence of authentication is a decision, not an oversight: the API binds to
 localhost and exposes only public data. Anything internet-facing needs it first.

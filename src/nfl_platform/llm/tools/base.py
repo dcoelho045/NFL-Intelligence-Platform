@@ -17,6 +17,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict
 
 from nfl_platform.llm.results import ToolResult
+from nfl_platform.schemas.evidence import SourceKind
 from nfl_platform.services.container import ServiceContainer
 
 
@@ -37,6 +38,9 @@ class Tool[ArgsT: ToolArgs](ABC):
     name: ClassVar[str]
     description: ClassVar[str]
     args_model: ClassVar[type[ToolArgs]]
+    # Which evidence channel this tool speaks for. Only STRUCTURED results may
+    # ground a statistic, so this is not merely a label.
+    source_kind: ClassVar[SourceKind] = SourceKind.STRUCTURED
 
     @abstractmethod
     def invoke(self, container: ServiceContainer, args: ArgsT) -> ToolResult:

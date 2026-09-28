@@ -21,10 +21,12 @@ from nfl_platform.schemas.assistant import (
     AssistantAskRequest,
     AssistantRunStats,
     EvidenceItem,
+    RetrievalStatsDTO,
     ToolCatalogue,
     ToolDescription,
 )
 from nfl_platform.schemas.common import ErrorResponse
+from nfl_platform.schemas.evidence import SourceRef
 
 logger = get_logger(__name__)
 
@@ -69,6 +71,9 @@ RegistryDep = Annotated[ToolRegistry, Depends(get_tool_registry)]
 @router.post(
     "/ask",
     response_model=AssistantAnswerResponse,
+    # Matches the tool-result convention: an absent field means "not applicable"
+    # here, which keeps a structured source from carrying six null web fields.
+    response_model_exclude_none=True,
     summary="Ask an NFL question",
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
@@ -119,6 +124,7 @@ def _to_response(result: AssistantAnswer) -> AssistantAnswerResponse:
         evidence=[
             EvidenceItem(tool=item.tool, arguments=item.arguments) for item in result.evidence
         ],
+        sources=[SourceRef(**source) for source in trace.sources],
         stats=AssistantRunStats(
             model=trace.model,
             prompt_version=trace.prompt_version,
@@ -131,5 +137,8 @@ def _to_response(result: AssistantAnswer) -> AssistantAnswerResponse:
             estimated_cost_usd=trace.estimated_cost_usd,
             tools_used=trace.tools_used,
             ungrounded_numbers=trace.ungrounded_numbers,
+            numbers_from_unstructured_sources=trace.numbers_from_unstructured_sources,
+            fabricated_sources=trace.fabricated_sources,
+            retrieval=RetrievalStatsDTO(**trace.retrieval.as_dict()),
         ),
     )

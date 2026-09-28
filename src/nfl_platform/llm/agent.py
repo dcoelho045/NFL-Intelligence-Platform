@@ -29,7 +29,7 @@ from typing import Any
 from nfl_platform.config.logging import get_logger
 from nfl_platform.config.settings import Settings, get_settings
 from nfl_platform.llm.client import ChatClient, ChatMessage, ToolCall
-from nfl_platform.llm.grounding import check_grounding
+from nfl_platform.llm.grounding import check_citations, check_grounding, collect_sources
 from nfl_platform.llm.prompts import DEFAULT_PROMPT_VERSION, load_prompt
 from nfl_platform.llm.registry import ToolRegistry, build_default_registry
 from nfl_platform.llm.results import ToolResult
@@ -72,10 +72,15 @@ class AssistantAnswer:
     def used_tools(self) -> bool:
         return bool(self.evidence)
 
+    @property
+    def sources(self) -> list[dict[str, Any]]:
+        return [] if self.trace is None else self.trace.sources
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "answer": self.answer,
             "evidence": [item.as_dict() for item in self.evidence],
+            "sources": self.sources,
             "trace": None if self.trace is None else self.trace.as_dict(),
         }
 
@@ -111,6 +116,10 @@ class NflAnalystAgent:
         if not question or not question.strip():
             raise ValueError("Question must not be empty.")
 
+        # Web searches are budgeted per question, so the counter resets here
+        # rather than per process.
+        self._container.research.begin_run()
+
         trace = RunTrace(
             model=self._client.model,
             prompt_version=self._prompt.version,
@@ -143,6 +152,7 @@ class NflAnalystAgent:
             for call in completion.tool_calls:
                 result, record = self._run_tool(call)
                 trace.record_tool_call(record)
+                trace.retrieval.record(record.source_kind, result.data if result.ok else None)
                 results.append(result)
                 messages.append(ChatMessage.tool_result(call.id, call.name, result.to_json()))
                 if result.ok:
@@ -170,7 +180,11 @@ class NflAnalystAgent:
                 stop_reason = "empty_answer"
 
         report = check_grounding(answer_text, results, question)
+        citations = check_citations(answer_text, results)
         trace.ungrounded_numbers = list(report.ungrounded)
+        trace.numbers_from_unstructured_sources = list(report.from_unstructured)
+        trace.fabricated_sources = list(citations.fabricated)
+        trace.sources = collect_sources(results)
         trace.finish(stop_reason)
 
         if not report.is_grounded:
@@ -178,6 +192,11 @@ class NflAnalystAgent:
             logger.warning(
                 "Answer contains numbers not present in any tool result",
                 extra={"ungrounded": trace.ungrounded_numbers, "tools": trace.tools_used},
+            )
+        if not citations.is_valid:
+            logger.warning(
+                "Answer cites sources that were never retrieved",
+                extra={"fabricated": trace.fabricated_sources},
             )
 
         return AssistantAnswer(
@@ -197,6 +216,7 @@ class NflAnalystAgent:
             ok=result.ok,
             duration_ms=duration_ms,
             error_code=result.error_code,
+            source_kind=str(result.source_kind),
         )
         return result, record
 
@@ -239,7 +259,36 @@ class NflAnalystAgent:
             "Tool arguments that omit seasons use the configured default season. "
             "Call list_reference_data if you need the seasons that actually have data."
         )
+        lines.append(
+            "Statistical data is cached and may lag live results by up to a day, so a "
+            "just-finished game may not appear yet. Anything that could have changed "
+            "since yesterday is a search_web question, not a statistics question."
+        )
+        lines.append(self._retrieval_context())
         return " ".join(lines)
+
+    def _retrieval_context(self) -> str:
+        """Tell the model which retrieval channels actually work here.
+
+        Discovering that a capability is switched off by calling it wastes a
+        turn, and a model that has burned a turn on an unavailable tool is more
+        likely to answer from memory instead.
+        """
+        available: list[str] = []
+        unavailable: list[str] = []
+
+        (available if self._container.research.available else unavailable).append("search_web")
+        (available if self._container.knowledge.available else unavailable).append(
+            "search_knowledge_base"
+        )
+
+        if not unavailable:
+            budget = self._settings.web_search_max_calls_per_run
+            return f"You may run at most {budget} web search(es) for this question."
+        return (
+            f"{', '.join(unavailable)} is not configured on this deployment; do not call it. "
+            "Answer from the analytics tools and say plainly what you could not check."
+        )
 
     @staticmethod
     def _safe_arguments(raw: str) -> dict[str, Any]:

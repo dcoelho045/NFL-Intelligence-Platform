@@ -1,0 +1,151 @@
+{
+  "_comment": "Golden set for local RAG. Expected documents are the ones that should answer the question. Negative controls expect nothing above the relevance floor; they are what calibrate the floor, because without them recall is trivially maximised by returning everything.",
+  "positive": [
+    {
+      "question": "What does PPR mean in fantasy football?",
+      "expected_documents": ["fantasy-scoring-formats"]
+    },
+    {
+      "question": "How many points is a passing touchdown worth in fantasy?",
+      "expected_documents": ["fantasy-scoring-formats"]
+    },
+    {
+      "question": "What is half PPR scoring?",
+      "expected_documents": ["fantasy-scoring-formats"]
+    },
+    {
+      "question": "What is a superflex league?",
+      "expected_documents": ["fantasy-scoring-formats"]
+    },
+    {
+      "question": "What is target share?",
+      "expected_documents": ["fantasy-metrics"]
+    },
+    {
+      "question": "What does WOPR measure?",
+      "expected_documents": ["fantasy-metrics"]
+    },
+    {
+      "question": "What are air yards?",
+      "expected_documents": ["fantasy-metrics"]
+    },
+    {
+      "question": "What is average depth of target?",
+      "expected_documents": ["fantasy-metrics", "glossary-abbreviations"]
+    },
+    {
+      "question": "What is snap share?",
+      "expected_documents": ["fantasy-metrics"]
+    },
+    {
+      "question": "How many points is a safety worth?",
+      "expected_documents": ["nfl-scoring-rules"]
+    },
+    {
+      "question": "How does overtime work in the NFL playoffs?",
+      "expected_documents": ["nfl-scoring-rules"]
+    },
+    {
+      "question": "What is a two-point conversion?",
+      "expected_documents": ["nfl-scoring-rules"]
+    },
+    {
+      "question": "How many weeks are in an NFL regular season?",
+      "expected_documents": ["season-structure"]
+    },
+    {
+      "question": "What is the difference between REG and POST season type?",
+      "expected_documents": ["season-structure", "glossary-abbreviations"]
+    },
+    {
+      "question": "How many teams make the playoffs in each conference?",
+      "expected_documents": ["season-structure"]
+    },
+    {
+      "question": "What does questionable mean on an injury report?",
+      "expected_documents": ["injury-report-designations"]
+    },
+    {
+      "question": "What is the difference between DNP and LP practice participation?",
+      "expected_documents": ["injury-report-designations"]
+    },
+    {
+      "question": "What does injured reserve mean?",
+      "expected_documents": ["roster-designations"]
+    },
+    {
+      "question": "What is the physically unable to perform list?",
+      "expected_documents": ["roster-designations"]
+    },
+    {
+      "question": "What is a practice squad elevation?",
+      "expected_documents": ["roster-designations"]
+    },
+    {
+      "question": "What is a slot receiver?",
+      "expected_documents": ["positions-and-roles"]
+    },
+    {
+      "question": "What is a bell-cow running back?",
+      "expected_documents": ["positions-and-roles"]
+    },
+    {
+      "question": "Why does this platform count last N games instead of last N weeks?",
+      "expected_documents": ["analytics-conventions"]
+    },
+    {
+      "question": "Why are null fields omitted instead of set to zero?",
+      "expected_documents": ["analytics-conventions"]
+    },
+    {
+      "question": "What is a GSIS identifier?",
+      "expected_documents": ["data-model-notes", "analytics-conventions"]
+    },
+    {
+      "question": "What happened to the Oakland Raiders team abbreviation?",
+      "expected_documents": ["data-model-notes"]
+    },
+    {
+      "question": "How current is the structured statistical data?",
+      "expected_documents": ["data-limitations"]
+    },
+    {
+      "question": "What data does this platform not have?",
+      "expected_documents": ["data-limitations"]
+    },
+    {
+      "question": "When should the assistant use web retrieval instead of analytics?",
+      "expected_documents": ["retrieval-routing", "evidence-policy"]
+    },
+    {
+      "question": "What kinds of evidence does this assistant distinguish?",
+      "expected_documents": ["evidence-policy", "retrieval-routing"]
+    }
+  ],
+  "negative": [
+    {
+      "question": "How many passing yards did Patrick Mahomes have in 2024?",
+      "reason": "A statistic. Belongs to the analytics tools."
+    },
+    {
+      "question": "Which team won the game last Sunday?",
+      "reason": "A result. Belongs to the analytics tools."
+    },
+    {
+      "question": "Is Travis Kelce playing this week?",
+      "reason": "Current information. Belongs to web retrieval."
+    },
+    {
+      "question": "What were the Buffalo Bills' rushing yards per game last season?",
+      "reason": "A statistic. Belongs to the analytics tools."
+    },
+    {
+      "question": "Who did the Chiefs trade for at the deadline this year?",
+      "reason": "Current information. Belongs to web retrieval."
+    },
+    {
+      "question": "What is the capital of France?",
+      "reason": "Entirely outside the corpus and outside the domain."
+    }
+  ]
+}

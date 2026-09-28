@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from nfl_platform.llm.errors import ToolErrorDetail
+from nfl_platform.schemas.evidence import SourceKind
 
 # Rows of any list field handed to the model. Enough to see a trend, not enough
 # to dominate the context window.
@@ -62,15 +63,31 @@ class ToolResult:
     data: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
     notes: list[str] = field(default_factory=list)
+    # Retrieval results must not be able to ground a statistic, so the grounding
+    # check needs to know which channel produced each payload.
+    source_kind: SourceKind = SourceKind.STRUCTURED
 
     @classmethod
-    def success(cls, tool: str, data: dict[str, Any], notes: list[str] | None = None) -> ToolResult:
-        return cls(tool=tool, ok=True, data=data, notes=notes or [])
+    def success(
+        cls,
+        tool: str,
+        data: dict[str, Any],
+        notes: list[str] | None = None,
+        *,
+        source_kind: SourceKind = SourceKind.STRUCTURED,
+    ) -> ToolResult:
+        return cls(tool=tool, ok=True, data=data, notes=notes or [], source_kind=source_kind)
 
     @classmethod
-    def from_dto(cls, tool: str, dto: BaseModel) -> ToolResult:
+    def from_dto(
+        cls,
+        tool: str,
+        dto: BaseModel,
+        *,
+        source_kind: SourceKind = SourceKind.STRUCTURED,
+    ) -> ToolResult:
         payload, notes = serialise_dto(dto)
-        return cls.success(tool, payload, notes)
+        return cls.success(tool, payload, notes, source_kind=source_kind)
 
     @classmethod
     def failure(cls, tool: str, detail: ToolErrorDetail) -> ToolResult:
