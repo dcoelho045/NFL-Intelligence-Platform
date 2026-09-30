@@ -52,8 +52,9 @@ would double the failure modes for no benefit on one machine.
 | `llm/providers/openai_client.py` | The **only** module that imports `openai`                                    |
 | `llm/registry.py`                | Registration, schema export, validation, dispatch                            |
 | `llm/tools/`                     | One thin class per capability                                                |
+| `llm/tools/common.py`            | Re-exports the shared argument fields from `schemas/fields.py`               |
 | `llm/results.py`                 | Tool result envelope, truncation, null suppression                           |
-| `llm/errors.py`                  | Domain exception → model-readable error payload                              |
+| `tool_errors.py`                 | Domain exception → machine-readable error payload (shared with MCP)          |
 | `llm/grounding.py`               | Numeric grounding detector                                                   |
 | `llm/trace.py`                   | Latency, tokens, estimated cost, executed calls                              |
 | `llm/prompts/`                   | Versioned system prompts                                                     |

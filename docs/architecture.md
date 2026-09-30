@@ -8,7 +8,7 @@ How the platform is layered, and why each boundary exists.
 graph TD
     subgraph adapters["Adapters - interchangeable"]
         API["api/<br/>FastAPI routers"]
-        MCP["MCP server<br/>(Milestone 5)"]
+        MCP["mcp_server/<br/>MCP tools, resources, prompts"]
         TOOLS["llm/<br/>tool-calling assistant"]
     end
     subgraph contract["Stable contract"]
@@ -19,12 +19,12 @@ graph TD
         ANALYTICS["analytics/<br/>pure functions"]
         RETRIEVAL["retrieval/<br/>web search + local RAG"]
         DATA["data/<br/>loader + sources"]
-        DOMAIN["domain.py, exceptions.py, config/"]
+        DOMAIN["domain.py, exceptions.py, tool_errors.py, config/"]
     end
 
     API --> SERVICES
     API --> TOOLS
-    MCP -.-> SERVICES
+    MCP --> SERVICES
     TOOLS --> SERVICES
     SERVICES --> SCHEMAS
     SERVICES --> ANALYTICS
@@ -38,15 +38,16 @@ Dependencies flow strictly downward.
 [tests/architecture/test_layering.py](../tests/architecture/test_layering.py)
 asserts this mechanically, so the rule cannot quietly stop being true.
 
-| Layer        | Responsibility                     | May import                                            |
-| ------------ | ---------------------------------- | ----------------------------------------------------- |
-| `api/`       | HTTP mapping and serialisation     | `services`, `schemas`, `llm`                          |
-| `llm/`       | Tool selection and synthesis       | `services`, `schemas`, `domain`                       |
-| `services/`  | Compose, validate, convert to DTOs | `analytics`, `retrieval`, `data`, `schemas`, `domain` |
-| `schemas/`   | Typed contract                     | `domain` only                                         |
-| `analytics/` | Deterministic computation          | `data`, `domain`                                      |
-| `retrieval/` | Web search and local RAG           | `schemas`, `domain`, `config`                         |
-| `data/`      | Load and validate nflverse data    | `domain`, `config`                                    |
+| Layer         | Responsibility                     | May import                                            |
+| ------------- | ---------------------------------- | ----------------------------------------------------- |
+| `api/`        | HTTP mapping and serialisation     | `services`, `schemas`, `llm`                          |
+| `mcp_server/` | MCP mapping and serialisation      | `services`, `schemas`, `domain`                       |
+| `llm/`        | Tool selection and synthesis       | `services`, `schemas`, `domain`                       |
+| `services/`   | Compose, validate, convert to DTOs | `analytics`, `retrieval`, `data`, `schemas`, `domain` |
+| `schemas/`    | Typed contract                     | `domain` only                                         |
+| `analytics/`  | Deterministic computation          | `data`, `domain`                                      |
+| `retrieval/`  | Web search and local RAG           | `schemas`, `domain`, `config`                         |
+| `data/`       | Load and validate nflverse data    | `domain`, `config`                                    |
 
 `retrieval/` is a peer of `analytics/`, not a part of `llm/`. Both are
 capabilities the service layer composes, and neither knows a model exists --
@@ -56,6 +57,12 @@ usable without an LLM. See [rag-design.md](rag-design.md).
 `api/ -> llm/` is allowed; `llm/ -> api/` is not. The assistant is reachable
 _through_ HTTP but does not depend on HTTP, so the CLI and the benchmark script
 use it without a web server.
+
+`mcp_server/` imports neither sibling, and neither imports it. What the LLM and
+MCP adapters genuinely share -- argument descriptions and the error taxonomy --
+lives in [`schemas/fields.py`](../src/nfl_platform/schemas/fields.py) and
+[`tool_errors.py`](../src/nfl_platform/tool_errors.py), which belong to neither.
+See [mcp-design.md](mcp-design.md).
 
 ## The three boundaries that matter
 
@@ -70,7 +77,8 @@ imports Polars — asserted by a test.
 
 This is what makes Milestones 3 and 5 cheap: `model_json_schema()` on any DTO
 produces exactly the JSON Schema that LLM tool-calling and MCP tool definitions
-require.
+require. The MCP adapter goes further and returns the DTOs themselves, so each
+tool publishes an `output_schema` a client can rely on before it calls.
 
 ### 2. The LLM is never the source of a number
 
@@ -92,9 +100,9 @@ See [llm-tools.md](llm-tools.md) for the full boundary.
 
 ### 3. Adapters are siblings, not a stack
 
-FastAPI, the assistant, and the future MCP server are **peers**, all calling
+FastAPI, the assistant, and the MCP server are **peers**, all calling
 `ServiceContainer` in-process. The HTTP layer exposes the assistant, but the
-assistant never calls HTTP.
+assistant never calls HTTP, and neither calls MCP.
 
 The alternative — having MCP or the assistant call our own HTTP API — was
 rejected deliberately:
@@ -216,7 +224,7 @@ One container per process means the memo stays warm across requests.
 | Hosted vector database    | 97 chunks scan exactly in under a millisecond; see rag-design | if measured   |
 | Reranker / query rewriter | Retrieval hit@1 is already 1.00; nothing left to improve      | if measured   |
 | `fetch_url` tool          | Removes SSRF and the inject-a-link escalation path entirely   | if justified  |
-| MCP server                | Needs a stable service layer first — this one                 | 5             |
+| MCP over HTTP             | stdio needs no port or auth; HTTP needs both to be worth it   | if justified  |
 | ML models                 | Needs a baseline and evaluation harness                       | 6             |
 | Agent framework           | One loop with no branching does not need one                  | 7             |
 | PostgreSQL                | Nothing yet needs transactions or concurrent writes           | when required |
@@ -224,4 +232,6 @@ One container per process means the memo stays warm across requests.
 
 The absence of authentication is a decision, not an oversight: the API binds to
 localhost and exposes only public data. Anything internet-facing needs it first.
-That now includes the assistant endpoint, which spends money per request.
+That now includes the assistant endpoint, which spends money per request. The
+MCP server sidesteps the question entirely by speaking stdio, where the trust
+boundary is the local user who launched the process.

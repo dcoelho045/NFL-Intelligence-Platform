@@ -9,6 +9,7 @@ from pydantic import Field
 from nfl_platform.llm.results import ToolResult
 from nfl_platform.llm.tools.base import Tool, ToolArgs
 from nfl_platform.llm.tools.common import (
+    ComparedPlayersField,
     LastNGamesField,
     PlayerField,
     SeasonsField,
@@ -18,8 +19,6 @@ from nfl_platform.llm.tools.common import (
 from nfl_platform.schemas.common import SeasonType
 from nfl_platform.schemas.fantasy import FantasyScoring
 from nfl_platform.services.container import ServiceContainer
-
-MAX_COMPARISON_PLAYERS = 6
 
 ScoringField = Field(
     default=FantasyScoring.PPR,
@@ -109,11 +108,7 @@ class GetFantasyMatchupContextTool(Tool[FantasyMatchupContextArgs]):
 
 
 class CompareFantasyPlayersArgs(ToolArgs):
-    players: list[str] = Field(
-        min_length=2,
-        max_length=MAX_COMPARISON_PLAYERS,
-        description="Two to six player names or GSIS ids to compare over one shared window.",
-    )
+    players: ComparedPlayersField
     seasons: SeasonsField = None
     last_n_games: LastNGamesField = 4
     scoring: FantasyScoring = ScoringField

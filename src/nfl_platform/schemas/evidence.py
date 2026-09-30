@@ -123,3 +123,31 @@ class RetrievalStatus(BaseDTO):
     knowledge_base_chunks: int | None = None
     embedding_model: str | None = None
     knowledge_base_built_at: str | None = None
+
+
+class KnowledgeDocumentRef(BaseDTO):
+    """One curated document, without its body.
+
+    The listing carries no text so an application can decide what to open
+    before paying the context cost of opening it.
+    """
+
+    document_id: str = Field(description="Stable identifier, also the resource address.")
+    title: str
+    document_type: str
+    source: str
+    updated: str | None = Field(default=None, description="When this content was last reviewed.")
+    characters: int = Field(ge=0, description="Length of the document body.")
+
+
+class KnowledgeDocument(KnowledgeDocumentRef):
+    """One curated document with its full text."""
+
+    text: str = Field(description="The document body, verbatim.")
+
+
+class KnowledgeCorpusIndex(BaseDTO):
+    """Every curated document available to read."""
+
+    document_count: int = Field(ge=0)
+    documents: list[KnowledgeDocumentRef] = Field(default_factory=list)
