@@ -253,6 +253,19 @@ class CorpusValidationError(RetrievalError):
         super().__init__(f"Knowledge document {path!r} is invalid: {reason}")
 
 
+class KnowledgeDocumentNotFoundError(RetrievalError):
+    """A curated document was requested by an id the corpus does not contain.
+
+    Lookup is by identifier against the loaded corpus, never by path, so this is
+    also what an attempted path traversal produces.
+    """
+
+    def __init__(self, document_id: str, known: tuple[str, ...] = ()) -> None:
+        self.document_id = document_id
+        self.known = known
+        super().__init__(f"No knowledge document with id {document_id!r}.")
+
+
 class EmbeddingError(RetrievalError):
     """The embedding provider could not be reached or refused the request."""
 

@@ -204,7 +204,5 @@ def get_dataset_spec(dataset: Dataset | str) -> DatasetSpec:
     try:
         key = Dataset(dataset)
     except ValueError:
-        raise UnknownDatasetError(
-            str(dataset), frozenset(item.value for item in Dataset)
-        ) from None
+        raise UnknownDatasetError(str(dataset), frozenset(item.value for item in Dataset)) from None
     return DATASETS[key]

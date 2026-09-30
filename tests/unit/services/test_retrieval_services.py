@@ -8,6 +8,7 @@ import pytest
 
 from nfl_platform.config.settings import Settings
 from nfl_platform.exceptions import (
+    KnowledgeDocumentNotFoundError,
     KnowledgeIndexUnavailableError,
     WebSearchError,
     WebSearchNotConfiguredError,
@@ -143,6 +144,57 @@ class TestKnowledgeService:
             settings=settings,
         )
         assert service.status() == (None, None, None, None)
+
+
+class TestKnowledgeCorpusBrowsing:
+    """Reading a document is not searching for one: no index, no embedding call."""
+
+    def test_documents_are_listed_without_their_bodies(self, services: ServiceContainer):
+        index = services.knowledge.documents()
+        assert index.document_count == 3
+        assert {document.document_id for document in index.documents} == {
+            "test-scoring",
+            "test-usage",
+            "test-conventions",
+        }
+        for document in index.documents:
+            assert document.characters > 0
+
+    def test_a_document_is_returned_with_its_text_and_provenance(self, services: ServiceContainer):
+        document = services.knowledge.document("test-scoring")
+        assert document.title == "Test Scoring Reference"
+        assert document.updated == "2024-01-01"
+        assert "PPR means points per reception" in document.text
+        assert document.characters == len(document.text)
+
+    def test_an_unknown_id_names_the_ones_that_exist(self, services: ServiceContainer):
+        with pytest.raises(KnowledgeDocumentNotFoundError) as caught:
+            services.knowledge.document("no-such-document")
+        assert "test-scoring" in caught.value.known
+
+    @pytest.mark.parametrize(
+        "document_id",
+        ["../../../etc/passwd", "/etc/passwd", "test-scoring/../secrets", "C:/Windows/win.ini"],
+    )
+    def test_an_identifier_is_never_treated_as_a_path(
+        self, services: ServiceContainer, document_id: str
+    ):
+        """Lookup is a dictionary hit against loaded documents, not a file open."""
+        with pytest.raises(KnowledgeDocumentNotFoundError):
+            services.knowledge.document(document_id)
+
+    def test_browsing_works_without_a_built_index(self, tmp_path: Path, settings: Settings):
+        """The corpus on disk is the source; the vector index is only for search."""
+        service = KnowledgeService(
+            retriever=KnowledgeRetriever(
+                store=VectorStore(tmp_path / "absent.parquet"),
+                embedder=FakeEmbedder(),
+                settings=settings,
+            ),
+            settings=settings,
+        )
+        assert service.available is False
+        assert service.documents().document_count == 3
 
 
 class TestContainerWiring:

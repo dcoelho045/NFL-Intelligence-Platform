@@ -33,7 +33,6 @@ FORBIDDEN_PACKAGES = frozenset(
         "chromadb",
         "qdrant_client",
         "pinecone",
-        "mcp",
         "sklearn",
         "xgboost",
         "lightgbm",
@@ -58,6 +57,12 @@ HTTP_ALLOWED_MODULES = (
     "retrieval/web/tavily.py",
     "retrieval/web/brave.py",
 )
+
+# Milestone 5 adds the MCP SDK. Same quarantine reasoning as the LLM SDK: the
+# protocol library belongs to the adapter that speaks the protocol, so "which
+# code depends on MCP" stays answerable by naming one package.
+MCP_SDK_PACKAGES = frozenset({"mcp"})
+MCP_ADAPTER_PACKAGE = "mcp_server"
 
 
 def _module_files(package: str) -> list[Path]:
@@ -208,6 +213,33 @@ class TestHttpClientIsQuarantined:
         assert not offenders, f"retrieval/{path.name} imports {sorted(offenders)}"
 
 
+class TestMcpSdkIsQuarantined:
+    """Milestone 5: only the MCP adapter may import the MCP SDK."""
+
+    @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
+    def test_only_the_mcp_adapter_imports_the_mcp_sdk(self, path: Path):
+        offenders = _imported_roots(path) & MCP_SDK_PACKAGES
+        if MCP_ADAPTER_PACKAGE in path.as_posix():
+            return
+        assert not offenders, (
+            f"{path.relative_to(SRC).as_posix()} imports {sorted(offenders)}; "
+            f"MCP SDK calls belong in {MCP_ADAPTER_PACKAGE}/"
+        )
+
+    def test_the_mcp_adapter_package_exists(self):
+        """Guard against the rule passing vacuously if the package is renamed."""
+        assert (SRC / MCP_ADAPTER_PACKAGE).is_dir()
+
+    def test_the_mcp_adapter_actually_uses_the_sdk(self):
+        """A quarantine around a package that never imports the SDK proves nothing."""
+        importers = [
+            path
+            for path in _module_files(MCP_ADAPTER_PACKAGE)
+            if _imported_roots(path) & MCP_SDK_PACKAGES
+        ]
+        assert importers
+
+
 class TestLayerDependencyDirection:
     """Acceptance criterion: raw data access is separated from business logic.
 
@@ -306,6 +338,53 @@ class TestLayerDependencyDirection:
     def test_retrieval_never_imports_the_web_framework(self, path: Path):
         offenders = _imported_roots(path) & {"fastapi", "starlette", "uvicorn"}
         assert not offenders, f"retrieval/{path.name} imports {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files(MCP_ADAPTER_PACKAGE), ids=lambda p: p.name)
+    def test_mcp_does_not_reach_past_the_service_layer(self, path: Path):
+        """MCP is an interface, not a second implementation of the analytics."""
+        modules = _imported_modules(path)
+        offenders = {
+            module
+            for module in modules
+            if module.startswith(
+                ("nfl_platform.analytics", "nfl_platform.data", "nfl_platform.retrieval")
+            )
+        }
+        assert not offenders, (
+            f"{MCP_ADAPTER_PACKAGE}/{path.name} bypasses the service layer: {sorted(offenders)}"
+        )
+
+    @pytest.mark.parametrize("path", _module_files(MCP_ADAPTER_PACKAGE), ids=lambda p: p.name)
+    def test_mcp_does_not_depend_on_the_other_adapters(self, path: Path):
+        """api, llm and mcp_server are siblings over one container, not a stack.
+
+        An import in either direction would make one adapter's design decisions
+        binding on the others, which is exactly what the shared neutral modules
+        (schemas/fields.py, tool_errors.py) exist to avoid.
+        """
+        offenders = {
+            module
+            for module in _imported_modules(path)
+            if module.startswith(("nfl_platform.api", "nfl_platform.llm"))
+        }
+        assert not offenders, (
+            f"{MCP_ADAPTER_PACKAGE}/{path.name} imports a sibling adapter: {sorted(offenders)}"
+        )
+
+    @pytest.mark.parametrize("path", _module_files(MCP_ADAPTER_PACKAGE), ids=lambda p: p.name)
+    def test_mcp_never_imports_polars_or_the_web_framework(self, path: Path):
+        offenders = _imported_roots(path) & {"polars", "fastapi", "starlette", "uvicorn"}
+        assert not offenders, f"{MCP_ADAPTER_PACKAGE}/{path.name} imports {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("llm"), ids=lambda p: p.name)
+    def test_llm_does_not_depend_on_the_mcp_adapter(self, path: Path):
+        """The agent calls services in-process; routing it through MCP is not this milestone."""
+        offenders = {
+            module
+            for module in _imported_modules(path)
+            if module.startswith(f"nfl_platform.{MCP_ADAPTER_PACKAGE}")
+        }
+        assert not offenders, f"llm/{path.name} imports the MCP adapter: {sorted(offenders)}"
 
 
 class TestDataFramesStopAtTheServiceBoundary:

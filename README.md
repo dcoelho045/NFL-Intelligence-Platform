@@ -10,13 +10,14 @@ tools and synthesise an answer, never to recall a statistic.
 
 ## Status
 
-| Milestone | Scope                                                  | Status      |
-| --------- | ------------------------------------------------------ | ----------- |
-| 1         | NFL data foundation (`nflreadpy` + Polars)             | Complete    |
-| 2         | Analytics service layer + FastAPI                      | Complete    |
-| 3         | LLM tool calling                                       | Complete    |
-| 4         | Web retrieval + lightweight local RAG                  | Complete    |
-| 5-11      | MCP, ML, agents, evaluation, observability, A2A, CI/CD | Not started |
+| Milestone | Scope                                             | Status      |
+| --------- | ------------------------------------------------- | ----------- |
+| 1         | NFL data foundation (`nflreadpy` + Polars)        | Complete    |
+| 2         | Analytics service layer + FastAPI                 | Complete    |
+| 3         | LLM tool calling                                  | Complete    |
+| 4         | Web retrieval + lightweight local RAG             | Complete    |
+| 5         | MCP server (tools, resources, prompts)            | Complete    |
+| 6-11      | ML, agents, evaluation, observability, A2A, CI/CD | Not started |
 
 The assistant added in Milestone 3 cannot compute a statistic: the `openai` SDK
 is importable only in `llm/providers/` and `retrieval/providers/`, the `llm/`
@@ -32,6 +33,13 @@ and the grounding check now distinguishes numbers traceable to it from numbers
 found only in retrieved prose. Retrieved web content is treated as untrusted
 input, and there is deliberately no tool that fetches a URL the model chose. See
 [docs/rag-design.md](docs/rag-design.md).
+
+Milestone 5 exposes those same capabilities over the Model Context Protocol, so
+any MCP host (VS Code, Claude Desktop, a future agent) can use them without
+importing this package. The MCP server is a **sibling** of the HTTP API and the
+in-process assistant, not a layer above them: all three call one
+`ServiceContainer`, and the MCP tools contain no business logic of their own. See
+[docs/mcp-design.md](docs/mcp-design.md).
 
 ## Requirements
 
@@ -98,6 +106,13 @@ Leave `NFL_LLM_TEMPERATURE` blank for reasoning models such as `o4-mini` and
 Without a key the API still starts and every analytics endpoint works; only
 `/api/v1/assistant/*` returns 503.
 
+The MCP server adds two optional settings, both with working defaults:
+
+| Variable                    | Purpose                                         | Default            |
+| --------------------------- | ----------------------------------------------- | ------------------ |
+| `NFL_MCP_SERVER_NAME`       | Name advertised to MCP clients                  | `nfl-intelligence` |
+| `NFL_MCP_ENABLE_WEB_SEARCH` | Whether the server may spend web-search credits | `true`             |
+
 ## Running the API
 
 ```powershell
@@ -158,10 +173,49 @@ The assistant selects and calls the same services shown below — it has no othe
 source of numbers. See [docs/llm-tools.md](docs/llm-tools.md) for the boundary,
 the 17 tools, and how errors and grounding are handled.
 
+## Running the MCP server
+
+The same capabilities, exposed over the Model Context Protocol for AI hosts:
+
+```powershell
+# As a host launches it (stdio; no port, no web server needed)
+python -m nfl_platform.mcp_server
+
+# Or, after `pip install -e .`
+nfl-mcp
+
+# Inspect it interactively in a browser (needs Node for npx)
+npx @modelcontextprotocol/inspector python -m nfl_platform.mcp_server
+```
+
+Register it with VS Code (`.vscode/mcp.json`), Claude Desktop, or any other MCP
+client:
+
+```json
+{
+  "servers": {
+    "nfl-intelligence": {
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["-m", "nfl_platform.mcp_server"],
+      "env": {
+        "OPENAI_API_KEY": "${env:OPENAI_API_KEY}",
+        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+It offers 15 read-only tools, 5 resources (`nfl://status`,
+`nfl://reference/...`, `nfl://knowledge/...`) and 3 prompts. Both keys are
+optional: without them the deterministic analytics tools still work and the
+retrieval tools report themselves unavailable rather than inventing an answer.
+See [docs/mcp-design.md](docs/mcp-design.md).
+
 ## Using it from Python
 
 The HTTP API is one adapter. The services behind it are importable directly,
-which is how the assistant — and the future MCP layer — call them:
+which is how both the assistant and the MCP server call them:
 
 ```python
 from nfl_platform.services import ServiceContainer
@@ -229,6 +283,8 @@ mypy src
 ```text
 src/nfl_platform/
   api/         FastAPI adapter: routers, DI, error mapping
+  mcp_server/  MCP adapter: tools, resources, prompts, error translation
+    prompts/   markdown prompt templates
   llm/         tool-calling assistant: agent loop, tools, prompts, tracing
     providers/ the chat SDK adapter
   retrieval/   web search and local RAG - a peer of analytics/
@@ -236,7 +292,7 @@ src/nfl_platform/
     knowledge/ corpus loading, chunking, embeddings, Parquet vector store
     providers/ the embeddings SDK adapter
   services/    OOP analytics and retrieval services - the stable interface
-  schemas/     Pydantic DTOs - the typed contract
+  schemas/     Pydantic DTOs - the typed contract, plus shared argument fields
   analytics/   deterministic, LLM-free computation
   data/
     ingestion/ dataset registry, typed loaders, schema validation, sources
@@ -244,15 +300,17 @@ src/nfl_platform/
   config/      settings (pydantic-settings) and structured logging
   domain.py    identifier and season/week validation
   exceptions.py
+  tool_errors.py  adapter-neutral exception to tool-error mapping
 data/knowledge/ the curated RAG corpus (15 markdown documents, committed)
 scripts/       fixture generation, LLM benchmark, index build, retrieval benchmark
 tests/
   fixtures/    committed Parquet fixtures, recorded web payloads, a test corpus
-docs/          architecture, API reference, LLM boundary, RAG design, data docs
+docs/          architecture, API reference, LLM boundary, RAG and MCP design
 ```
 
 Dependencies flow strictly downward: `api → services → {analytics, retrieval} →
-data`, with `llm` a sibling of `api` that also stops at `services`.
+data`, with `llm` and `mcp_server` siblings of `api` that also stop at
+`services`.
 [tests/architecture/test_layering.py](tests/architecture/test_layering.py)
 enforces this.
 
@@ -262,6 +320,9 @@ enforces this.
 - [API reference](docs/api.md) — endpoints, conventions, error semantics
 - [LLM tool calling](docs/llm-tools.md) — the model/analytics boundary, tools,
   validation, error handling, and numeric grounding
+- [MCP design](docs/mcp-design.md) — why MCP sits at this boundary, how it
+  differs from REST, and the tool/resource/prompt catalogue
+- [RAG design](docs/rag-design.md) — web retrieval and the local knowledge base
 - [Data model](docs/data-model.md) — entities, identifiers, grain, relationships
 - [Data sources](docs/data-sources.md) — nflverse datasets, cadence, licensing
 

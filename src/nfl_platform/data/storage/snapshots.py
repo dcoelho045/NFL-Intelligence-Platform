@@ -84,9 +84,7 @@ class SnapshotStore:
         spec = get_dataset_spec(dataset)
         path = self.path_for(name, spec.name)
         if not path.is_file():
-            raise DatasetNotAvailableError(
-                spec.name.value, f"no snapshot {name!r} at {path}"
-            )
+            raise DatasetNotAvailableError(spec.name.value, f"no snapshot {name!r} at {path}")
         return pl.read_parquet(path)
 
     def exists(self, name: str, dataset: Dataset | str) -> bool:

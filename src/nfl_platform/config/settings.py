@@ -242,6 +242,22 @@ class Settings(BaseSettings):
         description="Approximate token overlap between adjacent chunks of one section.",
     )
 
+    # --- MCP (Milestone 5) ------------------------------------------------
+    mcp_server_name: str = Field(
+        default="nfl-intelligence",
+        min_length=1,
+        max_length=64,
+        description="Server name advertised to MCP clients during initialisation.",
+    )
+    mcp_enable_web_search: bool = Field(
+        default=True,
+        description=(
+            "Whether the MCP search_web tool may spend search credits. False keeps the "
+            "tool in the catalogue but makes every call report the capability as "
+            "switched off, which is not the same as finding no current information."
+        ),
+    )
+
     @field_validator("default_season", mode="before")
     @classmethod
     def _blank_season_is_none(cls, value: object) -> object:
