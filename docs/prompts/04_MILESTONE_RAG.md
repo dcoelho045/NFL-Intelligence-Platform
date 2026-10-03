@@ -14,7 +14,7 @@ Structured NFL statistics remain in the deterministic analytics system.
 
 ## Architecture
 
-``` text
+```text
                          User Question
                               |
                               v
@@ -58,14 +58,14 @@ Milestones 1--3.
 
 Use web retrieval/search for frequently changing information such as:
 
--   current injuries
--   recent news
--   roster and depth-chart changes
--   trades
--   coach/player statements
--   current team/player context
--   game previews
--   current fantasy/news context
+- current injuries
+- recent news
+- roster and depth-chart changes
+- trades
+- coach/player statements
+- current team/player context
+- game previews
+- current fantasy/news context
 
 Do not build a large local archive of news articles merely to keep the
 system current.
@@ -77,15 +77,15 @@ curated information that is useful for demonstrating traditional RAG.
 
 Potential content:
 
--   NFL terminology
--   rules and scoring explanations
--   fantasy scoring definitions
--   statistical definitions
--   stable football concepts
--   project methodology
--   user-provided research
--   appropriately licensed/public-domain or otherwise permitted
-    documents
+- NFL terminology
+- rules and scoring explanations
+- fantasy scoring definitions
+- statistical definitions
+- stable football concepts
+- project methodology
+- user-provided research
+- appropriately licensed/public-domain or otherwise permitted
+  documents
 
 The local corpus should remain intentionally small. Do not download
 thousands of articles simply to demonstrate RAG.
@@ -94,13 +94,13 @@ thousands of articles simply to demonstrate RAG.
 
 Implement a web retrieval interface that can:
 
--   accept a natural-language search query
--   retrieve relevant current information
--   preserve source URLs/titles and useful provenance
--   return bounded, relevant context to the LLM
--   handle no-result and failed-search cases
--   avoid unnecessary searches when deterministic analytics already
-    provide the answer
+- accept a natural-language search query
+- retrieve relevant current information
+- preserve source URLs/titles and useful provenance
+- return bounded, relevant context to the LLM
+- handle no-result and failed-search cases
+- avoid unnecessary searches when deterministic analytics already
+  provide the answer
 
 Prefer an existing supported web-search/API capability rather than
 building and maintaining a custom web crawler unless there is a clear
@@ -110,7 +110,7 @@ Keep the provider behind a clean interface so it can be replaced later.
 
 Example conceptual interface:
 
-``` python
+```python
 search_web(
     query: str,
     recency_days: int | None = None,
@@ -124,7 +124,7 @@ Exact interfaces may differ if the implementation has a better design.
 
 Implement a lightweight local RAG pipeline:
 
-``` text
+```text
 Local Documents
       |
       v
@@ -160,11 +160,11 @@ Use a configurable embedding model.
 
 Document:
 
--   model/provider
--   embedding dimensions
--   approximate cost
--   why it was selected
--   how it can be replaced
+- model/provider
+- embedding dimensions
+- approximate cost
+- why it was selected
+- how it can be replaced
 
 Avoid embedding duplicate content unnecessarily.
 
@@ -172,7 +172,7 @@ Avoid embedding duplicate content unnecessarily.
 
 Each local document chunk should preserve useful metadata such as:
 
-``` text
+```text
 document_id
 source
 title
@@ -184,7 +184,7 @@ chunk_id
 
 Web results should preserve appropriate provenance such as:
 
-``` text
+```text
 source URL
 title
 publisher/domain when available
@@ -197,7 +197,7 @@ Do not store more web content than is necessary for the request.
 
 The system should distinguish among:
 
-``` text
+```text
 Structured evidence
     -> deterministic analytics tools
 
@@ -219,7 +219,7 @@ appropriate.
 
 Examples:
 
-``` text
+```text
 "How many yards did Player X have last week?"
         -> Analytics tool
 
@@ -239,7 +239,7 @@ Do not require every request to go through web search or local RAG.
 
 The assistant should distinguish:
 
-``` text
+```text
 Structured evidence
 Web evidence
 Local knowledge-base evidence
@@ -287,19 +287,19 @@ Create a small golden dataset before optimizing retrieval.
 
 Test:
 
--   local document ingestion
--   duplicate handling
--   chunking
--   metadata preservation
--   embedding generation
--   local retrieval
--   web-search interface
--   web-search failures
--   empty results
--   stale/irrelevant results
--   source attribution
--   routing between analytics, web retrieval, and local RAG
--   combining tool results with retrieved evidence
+- local document ingestion
+- duplicate handling
+- chunking
+- metadata preservation
+- embedding generation
+- local retrieval
+- web-search interface
+- web-search failures
+- empty results
+- stale/irrelevant results
+- source attribution
+- routing between analytics, web retrieval, and local RAG
+- combining tool results with retrieved evidence
 
 Tests should use mocks/fixtures where appropriate so the test suite does
 not depend on live web searches.
@@ -310,15 +310,15 @@ This project is intentionally designed to remain inexpensive.
 
 Prefer:
 
--   small local document corpus
--   limited retrieval results
--   configurable result limits
--   caching where useful
--   avoiding unnecessary embeddings
--   avoiding large-scale web crawling
--   avoiding a hosted vector database unless justified
--   avoiding unnecessary LLM calls
--   mocked external services in automated tests
+- small local document corpus
+- limited retrieval results
+- configurable result limits
+- caching where useful
+- avoiding unnecessary embeddings
+- avoiding large-scale web crawling
+- avoiding a hosted vector database unless justified
+- avoiding unnecessary LLM calls
+- mocked external services in automated tests
 
 Track approximate retrieval/API costs so later milestones can measure
 trade-offs.
@@ -336,22 +336,22 @@ in retrieved content.
 
 ## Acceptance Criteria
 
--   [ ] Web retrieval works end-to-end
--   [ ] Web results preserve useful provenance
--   [ ] Small local RAG corpus exists
--   [ ] Local RAG pipeline works end-to-end
--   [ ] Embeddings are configurable
--   [ ] Vector storage is lightweight
--   [ ] Structured NFL statistics remain in the analytics service
--   [ ] Retrieval source selection is documented
--   [ ] Retrieval benchmark exists
--   [ ] Retrieval tests pass
--   [ ] Assistant can combine analytics, web evidence, and local RAG
-    evidence
--   [ ] Current information can be retrieved without maintaining a large
-    document archive
--   [ ] Storage and API usage remain bounded and configurable
--   [ ] `docs/rag-design.md` documents the architecture and trade-offs
+- [x] Web retrieval works end-to-end
+- [x] Web results preserve useful provenance
+- [x] Small local RAG corpus exists
+- [x] Local RAG pipeline works end-to-end
+- [x] Embeddings are configurable
+- [x] Vector storage is lightweight
+- [x] Structured NFL statistics remain in the analytics service
+- [x] Retrieval source selection is documented
+- [x] Retrieval benchmark exists
+- [x] Retrieval tests pass
+- [x] Assistant can combine analytics, web evidence, and local RAG
+      evidence
+- [x] Current information can be retrieved without maintaining a large
+      document archive
+- [x] Storage and API usage remain bounded and configurable
+- [x] `docs/rag-design.md` documents the architecture and trade-offs
 
 ## Copilot Instructions
 
