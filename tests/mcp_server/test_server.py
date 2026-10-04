@@ -32,9 +32,18 @@ EXPECTED_TOOLS = {
     "compare_fantasy_players",
     "search_web",
     "search_knowledge_base",
+    "predict_game",
+    "predict_slate",
+    "project_fantasy_points",
+    "compare_fantasy_projections",
 }
 
-EXPECTED_PROMPTS = {"analyze_matchup", "fantasy_start_sit", "player_performance_review"}
+EXPECTED_PROMPTS = {
+    "analyze_matchup",
+    "fantasy_start_sit",
+    "player_performance_review",
+    "predict_game",
+}
 
 
 class TestInitialisation:
@@ -56,9 +65,19 @@ class TestInitialisation:
         assert "untrusted" in instructions
         assert "not current" in instructions
 
-    async def test_instructions_rule_out_predictions(self, client: Client):
-        """Milestone 6 has not happened; a host must not expect a projection."""
-        assert "produces a prediction or a projection" in (client.instructions or "").lower()
+    async def test_instructions_separate_predictions_from_measurements(self, client: Client):
+        """A host must be able to tell an estimate from a statistic."""
+        instructions = client.instructions or ""
+        assert "machine-learning estimates" in instructions
+        assert "never by" in instructions
+        assert "conditional on the player playing" in instructions
+
+    async def test_instructions_keep_measurement_and_estimate_apart(self, client: Client):
+        """Milestone 6 added predictions; the two kinds of claim must stay separable."""
+        instructions = client.instructions or ""
+        assert "must never be\npresented as the same kind of claim" in instructions.replace(
+            "\r\n", "\n"
+        )
 
     async def test_protocol_version_is_negotiated(self, client: Client):
         assert client.protocol_version
@@ -72,7 +91,7 @@ class TestToolDiscovery:
     async def test_the_catalogue_is_the_size_the_documentation_claims(self, client: Client):
         """docs/mcp-design.md and the README both quote this number."""
         listed = await client.list_tools()
-        assert len(listed.tools) == 15
+        assert len(listed.tools) == 19
 
     async def test_every_tool_describes_itself(self, client: Client):
         listed = await client.list_tools()
@@ -128,6 +147,7 @@ class TestPromptAndResourceDiscovery:
             "nfl://status",
             "nfl://reference/seasons",
             "nfl://knowledge/documents",
+            "nfl://models",
         }
         assert {template.uri_template for template in templates.resource_templates} == {
             "nfl://reference/teams/{season}",

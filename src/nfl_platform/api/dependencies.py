@@ -17,6 +17,7 @@ from nfl_platform.services.fantasy import FantasyAnalyticsService
 from nfl_platform.services.matchups import MatchupAnalyticsService
 from nfl_platform.services.meta import MetaService
 from nfl_platform.services.players import PlayerAnalyticsService
+from nfl_platform.services.predictions import PredictionService
 from nfl_platform.services.teams import TeamAnalyticsService
 
 MAX_LAST_N_GAMES = 50
@@ -55,12 +56,17 @@ def get_meta(container: ContainerDep) -> MetaService:
     return container.meta
 
 
+def get_predictions(container: ContainerDep) -> PredictionService:
+    return container.predictions
+
+
 PlayersDep = Annotated[PlayerAnalyticsService, Depends(get_players)]
 TeamsDep = Annotated[TeamAnalyticsService, Depends(get_teams)]
 MatchupsDep = Annotated[MatchupAnalyticsService, Depends(get_matchups)]
 FantasyDep = Annotated[FantasyAnalyticsService, Depends(get_fantasy)]
 DirectoryDep = Annotated[PlayerDirectoryService, Depends(get_directory)]
 MetaDep = Annotated[MetaService, Depends(get_meta)]
+PredictionsDep = Annotated[PredictionService, Depends(get_predictions)]
 
 # --- shared query parameters -------------------------------------------------
 # Range checking beyond these bounds is left to the domain layer, so the rules

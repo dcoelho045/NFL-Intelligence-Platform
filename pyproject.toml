@@ -33,6 +33,13 @@ classifiers = [
 #                       v2 was itself a breaking rework of v1's FastMCP API. The same
 #                       package is both server and client, so protocol-level tests need
 #                       no second library and no network.
+#   scikit-learn      - linear models, imputation/scaling, metrics and probability
+#                       calibration for the prediction layer. Also supplies numpy, which
+#                       is the only array type the estimators accept.
+#   lightgbm          - gradient boosting for the stronger models. Chosen over XGBoost
+#                       because its native artifact format is plain text (so no pickle is
+#                       needed anywhere), it ships per-prediction SHAP contributions
+#                       without a second library, and it is CPU-only by default.
 dependencies = [
     "nflreadpy>=0.1.5",
     "polars>=1.0.0",
@@ -44,6 +51,8 @@ dependencies = [
     "openai>=1.40.0",
     "httpx>=0.27.0",
     "mcp>=2.2.0,<3",
+    "scikit-learn>=1.5.0",
+    "lightgbm>=4.5.0",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +68,7 @@ dev = [
 
 [project.scripts]
 nfl-mcp = "nfl_platform.mcp_server.__main__:main"
+nfl-train = "nfl_platform.ml.cli:main"
 
 [project.urls]
 Repository = "https://github.com/dcoelho045/NFL-Intelligence-Platform"
@@ -69,13 +79,14 @@ packages = ["src/nfl_platform"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-# Integration, llm and web tests hit the network; keep the default suite offline
-# and deterministic.
-addopts = "-m 'not integration and not llm and not web' --strict-markers"
+# Integration, llm, web and training tests hit the network or cost real time; keep
+# the default suite offline and deterministic.
+addopts = "-m 'not integration and not llm and not web and not training' --strict-markers"
 markers = [
     "integration: touches the live nflverse network endpoints (deselected by default)",
     "llm: calls a live LLM provider and costs money (deselected by default)",
     "web: calls a live web-search provider and spends credits (deselected by default)",
+    "training: trains models over the full pinned snapshot (deselected by default)",
 ]
 
 [tool.coverage.run]
@@ -127,4 +138,10 @@ warn_unreachable = true
 # nflreadpy does not ship complete stubs.
 [[tool.mypy.overrides]]
 module = ["nflreadpy.*"]
+ignore_missing_imports = true
+
+# scikit-learn and LightGBM are partially typed at best; both are quarantined to
+# nfl_platform.ml.models, so the untyped surface is confined to those modules.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "lightgbm.*"]
 ignore_missing_imports = true

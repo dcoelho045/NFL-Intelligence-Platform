@@ -293,6 +293,15 @@ direction that looks like success.
 | `numbers_from_unstructured_sources` | only in retrieved web/KB text                  | allowed, counted, attribution expected       |
 | `ungrounded_numbers`                | in no source at all                            | **fabrication signal — fails the benchmark** |
 
+Milestone 6 adds a fourth `source_kind`, `model`, and it joins the _grounded_
+bucket rather than creating a new one. A win probability is a number this system
+computed and can trace to a named artifact, which is exactly the property the
+first bucket is about. It remains a separate `source_kind` so a prediction can
+never be presented as a measured statistic — the distinction that matters there
+is about the kind of claim, not about traceability. The split is expressed as
+`GROUNDING_KINDS = {structured, model}` and `RETRIEVAL_KINDS = {web,
+knowledge_base}`, and a test asserts they are disjoint.
+
 `is_grounded` keeps its original meaning. **A run that calls no retrieval tools
 produces exactly the report it produced before**, which is asserted by
 `TestMilestoneThreeBehaviourIsUnchanged` in
@@ -506,5 +515,5 @@ Milestone 9 can compare retrieval spend against model spend.
 - No reranker, query-rewriting agent, or second LLM
 - No hybrid/BM25 search
 - No `fetch_url` tool
-- No MCP, multi-agent orchestration, A2A, or ML prediction
+- No multi-agent orchestration or A2A — reserved for later milestones
 - No change to the 17 analytics tools, which remain authoritative for statistics

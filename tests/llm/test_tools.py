@@ -57,8 +57,20 @@ class TestToolExecution:
         assert result.data is not None
 
     def test_every_registered_tool_is_covered_by_these_tests(self, registry: ToolRegistry):
-        """A new tool must not be able to ship untested."""
-        assert set(registry.names) == {name for name, _ in TOOL_CALLS}
+        """A new tool must not be able to ship untested.
+
+        The prediction tools are exercised in ``test_prediction_tools.py`` rather
+        than here: they need trained artifacts and a league with enough history,
+        which the two-team analytics fixture deliberately does not have. They are
+        named explicitly so adding a tool and forgetting to test it still fails.
+        """
+        covered_elsewhere = {
+            "predict_game",
+            "predict_slate",
+            "project_fantasy_points",
+            "compare_fantasy_projections",
+        }
+        assert set(registry.names) == {name for name, _ in TOOL_CALLS} | covered_elsewhere
 
 
 class TestToolBehaviour:

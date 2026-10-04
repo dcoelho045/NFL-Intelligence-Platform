@@ -15,21 +15,36 @@ from pydantic import Field
 
 from nfl_platform.schemas.common import BaseDTO
 
-SourceKindName = Literal["structured", "web", "knowledge_base"]
+SourceKindName = Literal["structured", "web", "knowledge_base", "model"]
 
 
 class SourceKind(StrEnum):
     """Where a piece of evidence came from.
 
-    Defined in the schema layer because both the retrieval layer and the LLM
-    layer need it, and they are not allowed to import each other. The grounding
-    check treats these differently: only STRUCTURED values may ground a
-    statistic.
+    Defined in the schema layer because the retrieval layer, the prediction
+    layer and the LLM layer all need it, and they are not allowed to import each
+    other. The grounding check treats these differently: STRUCTURED and MODEL
+    values are computed by this system and may ground a number, while WEB and
+    KNOWLEDGE_BASE are retrieved text and may not.
+
+    MODEL is kept separate from STRUCTURED even though both ground numbers,
+    because the distinction is the point of the prediction layer: a measured
+    statistic and an estimate of an unplayed game must never be presented as the
+    same kind of claim.
     """
 
     STRUCTURED = "structured"
     WEB = "web"
     KNOWLEDGE_BASE = "knowledge_base"
+    MODEL = "model"
+
+
+#: Channels this system computes itself, and may therefore cite as the origin of
+#: a number. Retrieved text is excluded: it is quoted, never relied on for arithmetic.
+GROUNDING_KINDS = frozenset({SourceKind.STRUCTURED, SourceKind.MODEL})
+
+#: Channels that return third-party content with its own provenance fields.
+RETRIEVAL_KINDS = frozenset({SourceKind.WEB, SourceKind.KNOWLEDGE_BASE})
 
 
 class SourceRef(BaseDTO):

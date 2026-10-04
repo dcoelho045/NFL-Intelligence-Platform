@@ -24,10 +24,17 @@ is the worst way for a safety mechanism to fail.
 
 So numbers are sorted into three buckets:
 
-* *grounded* -- present in analytics output, or in the user's own question
+* *grounded* -- present in analytics output or model-prediction output, or in
+  the user's own question
 * *from unstructured sources* -- present only in retrieved web or knowledge-base
   text; permitted, but recorded, and expected to be attributed
 * *ungrounded* -- present nowhere; the fabrication signal
+
+Prediction output (Milestone 6) grounds numbers for the same reason analytics
+output does: this system computed it, so the value is traceable to a named
+model artifact rather than to the assistant's imagination. It remains a separate
+``SourceKind`` so that "the model estimates a 61% win probability" can never be
+rendered as a measured fact.
 
 ``is_grounded`` keeps its original meaning. A run that calls no retrieval tools
 produces exactly the report it would have produced before this existed.
@@ -49,7 +56,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from nfl_platform.llm.results import ToolResult
-from nfl_platform.schemas.evidence import SourceKind
+from nfl_platform.schemas.evidence import GROUNDING_KINDS, RETRIEVAL_KINDS, SourceKind
 
 # Standalone numbers only. The surrounding character classes keep the components
 # of GSIS ids ("00-0033873") and ISO dates ("2024-09-15") out of the comparison,
@@ -151,17 +158,17 @@ def available_numbers(results: Iterable[ToolResult], *, dates: bool = False) -> 
 
 
 def partition_by_source(results: Iterable[ToolResult]) -> tuple[set[float], set[float]]:
-    """Split available numbers into (structured, unstructured)."""
-    structured: list[ToolResult] = []
-    unstructured: list[ToolResult] = []
+    """Split available numbers into (computed, retrieved)."""
+    computed: list[ToolResult] = []
+    retrieved: list[ToolResult] = []
     for result in results:
-        if result.source_kind is SourceKind.STRUCTURED:
-            structured.append(result)
+        if result.source_kind in GROUNDING_KINDS:
+            computed.append(result)
         else:
-            unstructured.append(result)
+            retrieved.append(result)
     # Date components count only on the retrieval side, where they are the
     # publication provenance an answer is expected to cite.
-    return available_numbers(structured), available_numbers(unstructured, dates=True)
+    return available_numbers(computed), available_numbers(retrieved, dates=True)
 
 
 def _is_supported(literal: str, value: float, is_percent: bool, allowed: set[float]) -> bool:
@@ -225,7 +232,6 @@ def check_grounding(
     structured, unstructured = partition_by_source(results)
     allowed = set(structured)
     allowed.update(number for _, number, _ in extract_numbers(question))
-
     checked: list[str] = []
     ungrounded: list[str] = []
     from_unstructured: list[str] = []
@@ -256,12 +262,21 @@ def _iter_dicts(value: Any) -> Iterable[dict[str, Any]]:
             yield from _iter_dicts(item)
 
 
+def _model_label(result: ToolResult) -> str | None:
+    """The artifact id a prediction payload was produced by, if it carries one."""
+    for item in _iter_dicts(result.data or {}):
+        model_id = item.get("model_id")
+        if isinstance(model_id, str) and model_id:
+            return model_id
+    return None
+
+
 def _retrieved_sources(results: Iterable[ToolResult]) -> tuple[set[str], set[str]]:
     """URLs and domains that actually came back from a retrieval tool."""
     urls: set[str] = set()
     domains: set[str] = set()
     for result in results:
-        if result.source_kind is SourceKind.STRUCTURED or not result.data:
+        if result.source_kind not in RETRIEVAL_KINDS or not result.data:
             continue
         for item in _iter_dicts(result.data):
             url = item.get("url")
@@ -286,7 +301,7 @@ def check_citations(answer: str, results: Sequence[ToolResult]) -> CitationRepor
     consulted = {
         str(result.source_kind)
         for result in results
-        if result.ok and result.source_kind is not SourceKind.STRUCTURED
+        if result.ok and result.source_kind in RETRIEVAL_KINDS
     }
 
     cited: list[str] = []
@@ -344,6 +359,16 @@ def collect_sources(results: Sequence[ToolResult]) -> list[dict[str, Any]]:
             if key not in seen:
                 seen.add(key)
                 sources.append({"kind": "structured", "label": result.tool})
+            continue
+
+        if result.source_kind is SourceKind.MODEL:
+            # Cite the artifact, not the tool: two tools may share one model, and
+            # which model produced a number is the fact a reader needs.
+            label = _model_label(result) or result.tool
+            key = f"model:{label}"
+            if key not in seen:
+                seen.add(key)
+                sources.append({"kind": "model", "label": label})
             continue
 
         for item in _iter_dicts(result.data):

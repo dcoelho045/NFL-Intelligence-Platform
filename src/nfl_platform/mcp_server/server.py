@@ -45,10 +45,19 @@ not be mixed:
    scoring formats, rules, and how this platform computes what it computes. It is
    not current; check the 'updated' field before implying it is.
 
+4. predict_game, predict_slate, project_fantasy_points and
+   compare_fantasy_projections return machine-learning estimates about games that
+   have not been played. They are produced by versioned model artifacts, never by
+   a language model. Quote them as estimates, name the model version, and never
+   substitute a probability or projection of your own when these tools decline to
+   answer. Fantasy projections are conditional on the player playing and carry no
+   estimate of the chance he is inactive.
+
 Every result states the window it covers (seasons, game count, season type).
 Quote that window with the number. An empty list means nothing was found in that
 window, which is a fact; an error means a capability could not run, which is not
-evidence about the world. No tool here produces a prediction or a projection.\
+evidence about the world. Measured statistics and model predictions must never be
+presented as the same kind of claim.\
 """
 
 

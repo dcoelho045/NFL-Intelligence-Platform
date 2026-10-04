@@ -73,6 +73,13 @@ WeekField = Annotated[
         description="A single week number (1-22). Omit for every week.",
     ),
 ]
+SeasonField = Annotated[
+    int | None,
+    Field(
+        default=None,
+        description="A single season, for example 2024. Omit for the current default season.",
+    ),
+]
 ComparedPlayersField = Annotated[
     list[str],
     Field(

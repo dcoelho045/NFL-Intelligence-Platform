@@ -39,6 +39,10 @@ UNAVAILABLE_CODES = frozenset(
         "web_search_budget_exhausted",
         "knowledge_base_unavailable",
         "data_source_unavailable",
+        "model_not_available",
+        "model_artifact_invalid",
+        "feature_schema_mismatch",
+        "insufficient_history",
     }
 )
 

@@ -5,19 +5,21 @@ A production-style AI engineering platform that answers NFL questions with
 
 The governing principle: **an LLM is never the source of truth for a number.**
 Statistics come from deterministic functions over
-[nflverse](https://github.com/nflverse) data. The LLM's job is to orchestrate
-tools and synthesise an answer, never to recall a statistic.
+[nflverse](https://github.com/nflverse) data, and predictions come from trained
+model artifacts. The LLM's job is to orchestrate tools and synthesise an answer,
+never to recall a statistic or estimate a probability.
 
 ## Status
 
-| Milestone | Scope                                             | Status      |
-| --------- | ------------------------------------------------- | ----------- |
-| 1         | NFL data foundation (`nflreadpy` + Polars)        | Complete    |
-| 2         | Analytics service layer + FastAPI                 | Complete    |
-| 3         | LLM tool calling                                  | Complete    |
-| 4         | Web retrieval + lightweight local RAG             | Complete    |
-| 5         | MCP server (tools, resources, prompts)            | Complete    |
-| 6-11      | ML, agents, evaluation, observability, A2A, CI/CD | Not started |
+| Milestone | Scope                                         | Status      |
+| --------- | --------------------------------------------- | ----------- |
+| 1         | NFL data foundation (`nflreadpy` + Polars)    | Complete    |
+| 2         | Analytics service layer + FastAPI             | Complete    |
+| 3         | LLM tool calling                              | Complete    |
+| 4         | Web retrieval + lightweight local RAG         | Complete    |
+| 5         | MCP server (tools, resources, prompts)        | Complete    |
+| 6         | ML prediction models (game + fantasy)         | Complete    |
+| 7-11      | Agents, evaluation, observability, A2A, CI/CD | Not started |
 
 The assistant added in Milestone 3 cannot compute a statistic: the `openai` SDK
 is importable only in `llm/providers/` and `retrieval/providers/`, the `llm/`
@@ -40,6 +42,22 @@ importing this package. The MCP server is a **sibling** of the HTTP API and the
 in-process assistant, not a layer above them: all three call one
 `ServiceContainer`, and the MCP tools contain no business logic of their own. See
 [docs/mcp-design.md](docs/mcp-design.md).
+
+Milestone 6 adds the only numbers in the platform that describe games which have
+not been played: a calibrated home-win probability and a weekly fantasy
+projection. Both come from versioned model artifacts trained offline on a pinned
+data snapshot — never from the LLM, which may explain a prediction but cannot
+produce one. Predictions carry the model that made them, the history they rest
+on, and their caveats, and are tagged `SourceKind.MODEL` so they stay
+distinguishable from measured statistics end to end.
+
+On the frozen 2024–2025 test period the game model reaches a Brier score of
+0.222 and 63.4% accuracy against a 0.249 / 54.1% home-field baseline, and the
+fantasy model reaches 4.62 MAE against a 4.96 rolling-average baseline. The
+game model that ships is **logistic regression, not LightGBM**: the boosted
+model did not beat it by more than fold-to-fold noise on validation, so the
+promotion rule kept the simpler one. See
+[docs/ml-predictions.md](docs/ml-predictions.md).
 
 ## Requirements
 
@@ -240,7 +258,28 @@ Services return typed Pydantic DTOs, not DataFrames.
 - Players may be addressed by GSIS id **or name**. Around 7.5% of nflverse
   players share a display name, so an ambiguous name returns **409** with the
   candidates rather than guessing.
-- Matchup analysis is **descriptive**. It contains no prediction.
+- Matchup analysis is **descriptive**. It contains no prediction. Predictions
+  live under `/api/v1/predictions` and carry the model that produced them.
+- Fantasy projections are **conditional on the player playing**. They contain no
+  estimate of the chance he is inactive, so check injury status separately.
+
+## Predictions
+
+```powershell
+# Pin the training data once, then train (no API key, no GPU, under a minute)
+python scripts/train_models.py snapshot --from-season 2002
+python scripts/train_models.py train
+
+# Inspect the recorded train / validation / frozen-test metrics
+python scripts/report_models.py
+python scripts/report_models.py --features   # the feature dictionary
+```
+
+Model artifacts are JSON and LightGBM text -- **no pickle anywhere** -- and are
+not committed: they are derived output, verified by checksum on every load, and
+rebuildable from the pinned snapshot. The API reports predictions as unavailable
+rather than guessing when none are installed. See
+[docs/ml-predictions.md](docs/ml-predictions.md).
 
 ## Testing
 
@@ -254,12 +293,17 @@ pytest -m integration
 # Live LLM tests - costs money, needs an API key
 pytest -m llm
 
+# Training over the full pinned snapshot - slow, needs a downloaded snapshot
+pytest -m training
+
 # With coverage
 pytest --cov=nfl_platform --cov-report=term-missing
 ```
 
-Integration and `llm` tests are deselected by default so the default suite is
-fast, deterministic, and usable in CI without network access or a key.
+Integration, `llm`, `web` and `training` tests are deselected by default so the
+default suite is fast, deterministic, and usable in CI without network access or
+a key. The ML tests run against a generated league in `tests/synthetic.py`, so
+CI never downloads nflverse data and never trains on real data.
 
 The assistant tests fake **only the model**. Tools execute for real against the
 committed fixtures, so they exercise genuine argument validation, service calls,
@@ -291,7 +335,15 @@ src/nfl_platform/
     web/       provider Protocol, Tavily and Brave adapters, cache, policy
     knowledge/ corpus loading, chunking, embeddings, Parquet vector store
     providers/ the embeddings SDK adapter
-  services/    OOP analytics and retrieval services - the stable interface
+  ml/          prediction models - a peer of analytics/ and retrieval/
+    features/  as-of feature builders, shared by training and inference
+    datasets/  matrix assembly and time-aware splitting (offline)
+    models/    estimators; the only place sklearn and lightgbm are imported
+    evaluation/ metrics and the walk-forward backtest (offline)
+    training/  the training pipeline and promotion rule (offline)
+    registry/  versioned, checksummed, pickle-free artifacts
+    predict/   load an artifact and score it; no fit() anywhere
+  services/    OOP analytics, retrieval and prediction services
   schemas/     Pydantic DTOs - the typed contract, plus shared argument fields
   analytics/   deterministic, LLM-free computation
   data/
@@ -302,17 +354,19 @@ src/nfl_platform/
   exceptions.py
   tool_errors.py  adapter-neutral exception to tool-error mapping
 data/knowledge/ the curated RAG corpus (15 markdown documents, committed)
-scripts/       fixture generation, LLM benchmark, index build, retrieval benchmark
+data/models/   trained artifacts (generated, not committed)
+scripts/       fixtures, benchmarks, index build, model training and reporting
 tests/
   fixtures/    committed Parquet fixtures, recorded web payloads, a test corpus
-docs/          architecture, API reference, LLM boundary, RAG and MCP design
+  synthetic.py generated league used by the ML tests
+docs/          architecture, API, LLM boundary, RAG, MCP and ML design
 ```
 
-Dependencies flow strictly downward: `api → services → {analytics, retrieval} →
-data`, with `llm` and `mcp_server` siblings of `api` that also stop at
-`services`.
+Dependencies flow strictly downward: `api → services → {analytics, retrieval,
+ml} → data`, with `llm` and `mcp_server` siblings of `api` that also stop at
+`services`. Inside `ml`, training is unreachable from serving.
 [tests/architecture/test_layering.py](tests/architecture/test_layering.py)
-enforces this.
+enforces both.
 
 ## Documentation
 
@@ -323,6 +377,9 @@ enforces this.
 - [MCP design](docs/mcp-design.md) — why MCP sits at this boundary, how it
   differs from REST, and the tool/resource/prompt catalogue
 - [RAG design](docs/rag-design.md) — web retrieval and the local knowledge base
+- [ML predictions](docs/ml-predictions.md) — features and when each becomes
+  known, leakage prevention, time-aware validation, baselines and results,
+  artifacts and reproducibility
 - [Data model](docs/data-model.md) — entities, identifiers, grain, relationships
 - [Data sources](docs/data-sources.md) — nflverse datasets, cadence, licensing
 

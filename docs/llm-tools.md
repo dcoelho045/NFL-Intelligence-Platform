@@ -63,19 +63,41 @@ would double the failure modes for no benefit on one machine.
 
 ## Tools
 
-Nineteen tools: seventeen deterministic analytics tools, each mapping 1:1 to a
-service method, plus two retrieval tools added in Milestone 4. The menu is kept
-small on purpose: tool-selection accuracy degrades as it grows.
+Twenty-three tools: seventeen deterministic analytics tools, each mapping 1:1 to
+a service method, two retrieval tools added in Milestone 4, and four prediction
+tools added in Milestone 6. The menu is kept small on purpose: tool-selection
+accuracy degrades as it grows.
 
-Every tool declares a `source_kind`, and it is not merely a label — only
-`structured` results may ground a statistic. See
+Every tool declares a `source_kind`, and it is not merely a label. Only channels
+this system _computes_ may ground a number; retrieved text may not. See
 [rag-design.md](rag-design.md#grounding-three-buckets).
 
-| `source_kind`    | Tools                   | Authoritative for     |
-| ---------------- | ----------------------- | --------------------- |
-| `structured`     | the 17 analytics tools  | every NFL statistic   |
-| `web`            | `search_web`            | current information   |
-| `knowledge_base` | `search_knowledge_base` | definitions and rules |
+| `source_kind`    | Tools                   | Authoritative for              | Grounds a number |
+| ---------------- | ----------------------- | ------------------------------ | ---------------- |
+| `structured`     | the 17 analytics tools  | every NFL statistic            | yes              |
+| `model`          | the 4 prediction tools  | estimates about unplayed games | yes              |
+| `web`            | `search_web`            | current information            | no               |
+| `knowledge_base` | `search_knowledge_base` | definitions and rules          | no               |
+
+`model` grounds a number for the same reason `structured` does: the value was
+computed by this system and is traceable to a named artifact. It stays a
+_separate_ kind so that "the model estimates 61%" can never be rendered as a
+measured fact. The citation builder reflects that — a model-sourced result is
+credited to `game_win/v1_logistic`, not to the tool that returned it.
+
+### Prediction
+
+| Tool                          | Returns                                  |
+| ----------------------------- | ---------------------------------------- |
+| `predict_game`                | Home win probability for one game        |
+| `predict_slate`               | Every game the model can score in a week |
+| `project_fantasy_points`      | Projected PPR points for one player      |
+| `compare_fantasy_projections` | Several players ranked for one week      |
+
+Their descriptions carry one instruction each, aimed at the failure these tools
+make possible: a model that has a win probability available and writes its own
+instead, or that reports a projection without the condition attached to it. See
+[ml-predictions.md](ml-predictions.md).
 
 ### Resolution
 
@@ -292,7 +314,9 @@ attribute a change in behaviour to the prompt rather than to the retrieval tools
 added beside it.
 
 `orchestrator_v1` is deliberately absent: there is nothing to orchestrate until
-Milestone 7.
+Milestone 7. `analyst_v2` was extended in Milestone 6 rather than forked,
+because the prediction rule is the same rule the prompt already states --
+numbers come from tools -- applied to a fourth channel.
 
 ## Cost and latency
 

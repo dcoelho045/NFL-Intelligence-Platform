@@ -15,6 +15,7 @@ from functools import cached_property
 
 from nfl_platform.config.settings import Settings, get_settings
 from nfl_platform.data.ingestion.loader import NflDataLoader
+from nfl_platform.ml.registry.store import ModelRegistry
 from nfl_platform.retrieval.knowledge.retriever import KnowledgeRetriever
 from nfl_platform.retrieval.web.search import WebSearchClient
 from nfl_platform.services.directory import PlayerDirectoryService
@@ -23,6 +24,7 @@ from nfl_platform.services.knowledge import KnowledgeService
 from nfl_platform.services.matchups import MatchupAnalyticsService
 from nfl_platform.services.meta import MetaService
 from nfl_platform.services.players import PlayerAnalyticsService
+from nfl_platform.services.predictions import PredictionService
 from nfl_platform.services.research import WebResearchService
 from nfl_platform.services.teams import TeamAnalyticsService
 
@@ -37,13 +39,16 @@ class ServiceContainer:
         *,
         web_client: WebSearchClient | None = None,
         knowledge_retriever: KnowledgeRetriever | None = None,
+        model_registry: ModelRegistry | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._loader = loader or NflDataLoader(settings=self._settings)
-        # Injected rather than built here so tests can supply a stub provider and
-        # an offline embedder without touching the network or needing a key.
+        # Injected rather than built here so tests can supply a stub provider,
+        # an offline embedder and a temporary model directory without touching
+        # the network, needing a key, or depending on what is installed on disk.
         self._web_client = web_client
         self._knowledge_retriever = knowledge_retriever
+        self._model_registry = model_registry
 
     @property
     def settings(self) -> Settings:
@@ -84,3 +89,12 @@ class ServiceContainer:
     @cached_property
     def knowledge(self) -> KnowledgeService:
         return KnowledgeService(retriever=self._knowledge_retriever, settings=self._settings)
+
+    @cached_property
+    def predictions(self) -> PredictionService:
+        return PredictionService(
+            self._loader,
+            directory=self.directory,
+            registry=self._model_registry,
+            settings=self._settings,
+        )

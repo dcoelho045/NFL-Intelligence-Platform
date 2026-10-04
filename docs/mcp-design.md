@@ -22,8 +22,9 @@ without anyone writing an integration for that specific host.
 
 ## Why it is useful here
 
-Milestones 1–4 produced something worth exposing: a deterministic NFL analytics
-layer, a bounded web-search channel, and a curated local knowledge base, all
+Milestones 1–6 produced something worth exposing: a deterministic NFL analytics
+layer, a bounded web-search channel, a curated local knowledge base, and two
+trained prediction models, all
 behind one typed service contract. Until Milestone 5 the only ways to reach it
 were an HTTP API (for code) and an in-process assistant (for this project's own
 model).
@@ -107,27 +108,37 @@ result.
 
 ## Tools
 
-Fifteen tools, each mapping onto one service method. The catalogue is a curated
+Nineteen tools, each mapping onto one service method. The catalogue is a curated
 subset of the service surface, not a mirror of it: a list a model can read is
 worth more than a list that is complete.
 
-| Tool                      | Service call                                        | Notes                                                         |
-| ------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| `search_players`          | `directory.search`                                  | identity resolution; the recovery path from an ambiguous name |
-| `get_player_profile`      | `directory.profile`                                 | biography only, no statistics                                 |
-| `get_player_stats`        | `players.recent_performance` / `season_performance` | the default statistics tool                                   |
-| `get_player_game_log`     | `players.game_log`                                  | week-by-week, newest first                                    |
-| `get_player_usage`        | `players.usage`                                     | snap share, target share, WOPR                                |
-| `get_player_injuries`     | `players.injury_report`                             | historical report entries                                     |
-| `compare_players`         | `players.compare`                                   | one shared window by construction                             |
-| `get_team_stats`          | `teams.offense` / `teams.defense`                   | `side` selects produced vs allowed                            |
-| `get_team_form`           | `teams.recent_form` / `home_away_splits`            | record, scoring, results sequence                             |
-| `get_team_injuries`       | `teams.injury_report`                               | team-wide report                                              |
-| `get_matchup`             | `matchups.analyze`                                  | descriptive only; contains no prediction                      |
-| `get_fantasy_production`  | `fantasy.production`                                | points, consistency; not a projection                         |
-| `compare_fantasy_players` | `fantasy.compare`                                   | the start/sit comparison                                      |
-| `search_web`              | `research.search`                                   | current information; untrusted content                        |
-| `search_knowledge_base`   | `knowledge.search`                                  | stable curated reference                                      |
+| Tool                          | Service call                                        | Notes                                                         |
+| ----------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
+| `search_players`              | `directory.search`                                  | identity resolution; the recovery path from an ambiguous name |
+| `get_player_profile`          | `directory.profile`                                 | biography only, no statistics                                 |
+| `get_player_stats`            | `players.recent_performance` / `season_performance` | the default statistics tool                                   |
+| `get_player_game_log`         | `players.game_log`                                  | week-by-week, newest first                                    |
+| `get_player_usage`            | `players.usage`                                     | snap share, target share, WOPR                                |
+| `get_player_injuries`         | `players.injury_report`                             | historical report entries                                     |
+| `compare_players`             | `players.compare`                                   | one shared window by construction                             |
+| `get_team_stats`              | `teams.offense` / `teams.defense`                   | `side` selects produced vs allowed                            |
+| `get_team_form`               | `teams.recent_form` / `home_away_splits`            | record, scoring, results sequence                             |
+| `get_team_injuries`           | `teams.injury_report`                               | team-wide report                                              |
+| `get_matchup`                 | `matchups.analyze`                                  | descriptive only; contains no prediction                      |
+| `get_fantasy_production`      | `fantasy.production`                                | points, consistency; not a projection                         |
+| `compare_fantasy_players`     | `fantasy.compare`                                   | the start/sit comparison                                      |
+| `search_web`                  | `research.search`                                   | current information; untrusted content                        |
+| `search_knowledge_base`       | `knowledge.search`                                  | stable curated reference                                      |
+| `predict_game`                | `predictions.predict_game`                          | model estimate; names the artifact that produced it           |
+| `predict_slate`               | `predictions.predict_slate`                         | a whole week; unscoreable games listed, not dropped           |
+| `project_fantasy_points`      | `predictions.project_fantasy_points`                | **conditional on the player playing**                         |
+| `compare_fantasy_projections` | `predictions.compare_projections`                   | start/sit ranking plus the margin                             |
+
+The last four are the only tools whose numbers describe games that have not been
+played. They are annotated `readOnlyHint` and `idempotentHint` — given a frozen
+artifact and a pinned snapshot they genuinely are repeatable — but "deterministic"
+is a statement about repeatability, not certainty, and the descriptions carry the
+uncertainty. See [ml-predictions.md](ml-predictions.md).
 
 Deliberately **not** exposed: the raw data loader and dataset registry (that is
 the "arbitrary database access" the milestone forbids), the snapshot store
@@ -184,13 +195,14 @@ subset is the worse failure. Size is bounded by the arguments instead —
 Five, and the split from tools is the reason there are only five: a tool is
 something a model decides to call, a resource is something an application loads.
 
-| URI                                       | Contents                                                |
-| ----------------------------------------- | ------------------------------------------------------- |
-| `nfl://status`                            | which capabilities this deployment can actually run     |
-| `nfl://reference/seasons`                 | seasons with data, and which one "this season" means    |
-| `nfl://reference/teams/{season}`          | valid abbreviations for a season (relocations matter)   |
-| `nfl://knowledge/documents`               | the curated corpus, listed without bodies               |
-| `nfl://knowledge/documents/{document_id}` | one curated document, verbatim, with its `updated` date |
+| URI                                       | Contents                                                       |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| `nfl://status`                            | which capabilities this deployment can actually run            |
+| `nfl://reference/seasons`                 | seasons with data, and which one "this season" means           |
+| `nfl://reference/teams/{season}`          | valid abbreviations for a season (relocations matter)          |
+| `nfl://knowledge/documents`               | the curated corpus, listed without bodies                      |
+| `nfl://knowledge/documents/{document_id}` | one curated document, verbatim, with its `updated` date        |
+| `nfl://models`                            | installed prediction models, their training windows and scores |
 
 There is no `player://` or `game://` space. Those would be parameterised queries
 with identity resolution and season windows — which is the definition of a tool,
@@ -214,8 +226,11 @@ Each template names the tools to call and in what order, requires every number t
 come from a tool result, and states that no tool here produces a projection.
 This is where the project's evidence policy reaches a model it does not control.
 
-`game_prediction` is deliberately absent. It belongs to Milestone 6, and until an
-ML model exists a prediction prompt would only invite an invented number.
+`predict_game` renders a three-step routing instruction: take the probability
+from the model, take the explanation from `top_factors` and the analytics tools,
+and take definitions from the knowledge base. It exists now because a model
+exists; before Milestone 6 a prediction prompt would only have invited an
+invented number.
 
 ## Errors, and the difference between "nothing" and "cannot"
 
@@ -370,12 +385,12 @@ marked `integration` because it reaches live nflverse.
 
 ## Decisions worth recording
 
-| Decision                 | Alternative rejected                 | Why                                                                                                                         |
-| ------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| MCP is a sibling adapter | route the assistant through MCP      | a process hop and a second failure mode, for no capability the assistant does not already have in-process                   |
-| Hand-written thin tools  | generate tools from the LLM registry | generation would couple two adapters and needs dynamic signatures; a parity **test** is cheaper than a parity **framework** |
-| 16 curated tools         | all 19 LLM tools                     | a catalogue a model can read beats one that mirrors every internal method                                                   |
-| stdio only               | streamable HTTP                      | HTTP without authentication is a liability, and with authentication it is a milestone of its own                            |
-| Reject unknown arguments | accept the SDK default               | a silently dropped filter returns a confidently wrong window                                                                |
-| Return whole DTOs        | truncate like the LLM adapter        | `structured_content` is read by code, where a silent subset is worse than a large payload                                   |
-| No prediction tool       | stub `predict_game`                  | Milestone 6 owns predictions; a stub invites a fabricated number                                                            |
+| Decision                                       | Alternative rejected                 | Why                                                                                                                         |
+| ---------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| MCP is a sibling adapter                       | route the assistant through MCP      | a process hop and a second failure mode, for no capability the assistant does not already have in-process                   |
+| Hand-written thin tools                        | generate tools from the LLM registry | generation would couple two adapters and needs dynamic signatures; a parity **test** is cheaper than a parity **framework** |
+| 19 curated tools                               | all 23 LLM tools                     | a catalogue a model can read beats one that mirrors every internal method                                                   |
+| stdio only                                     | streamable HTTP                      | HTTP without authentication is a liability, and with authentication it is a milestone of its own                            |
+| Reject unknown arguments                       | accept the SDK default               | a silently dropped filter returns a confidently wrong window                                                                |
+| Return whole DTOs                              | truncate like the LLM adapter        | `structured_content` is read by code, where a silent subset is worse than a large payload                                   |
+| Prediction tools return DTOs with `model_info` | a bare probability                   | a probability with no artifact, training window or caveat attached is indistinguishable from a guess                        |
