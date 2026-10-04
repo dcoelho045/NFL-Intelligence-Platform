@@ -33,13 +33,33 @@ FORBIDDEN_PACKAGES = frozenset(
         "chromadb",
         "qdrant_client",
         "pinecone",
-        "sklearn",
         "xgboost",
-        "lightgbm",
         "torch",
         "tensorflow",
+        "mlflow",
+        "dvc",
     }
 )
+
+# Milestone 6 adds the ML libraries. Same quarantine reasoning as every SDK
+# before them: "which code can fit a model" stays answerable by naming one
+# package. xgboost stays forbidden -- it is redundant with LightGBM here, and
+# torch/tensorflow stay forbidden because this milestone decided against a deep
+# learning model rather than merely not getting to one.
+ML_PACKAGES = frozenset({"sklearn", "lightgbm"})
+ML_ADAPTER_PACKAGE = "ml/models"
+
+# Training, evaluation and dataset assembly are offline-only. Serving code may
+# load an artifact and score it; it must never be able to fit one. Enforced as
+# an import rule because the alternative -- a convention -- is one convenience
+# import away from an API process that can retrain itself on a request.
+TRAINING_ONLY_MODULES = (
+    "nfl_platform.ml.training",
+    "nfl_platform.ml.evaluation",
+    "nfl_platform.ml.datasets",
+    "nfl_platform.ml.cli",
+)
+SERVING_PACKAGES = ("services", "api", "llm", "mcp_server", "ml/predict", "ml/registry")
 
 # Milestone 3 introduces exactly one LLM SDK. Milestone 4 uses it for a second
 # purpose (embeddings) from a layer that must not import upward into llm/, so the
@@ -105,6 +125,11 @@ class TestDetectorItself:
         sample = tmp_path / "sample.py"
         sample.write_text("from openai import OpenAI\n", encoding="utf-8")
         assert _imported_roots(sample) & PROVIDER_ONLY_PACKAGES == {"openai"}
+
+    def test_detects_ml_library_imports(self, tmp_path: Path):
+        sample = tmp_path / "sample.py"
+        sample.write_text("import lightgbm as lgb\n", encoding="utf-8")
+        assert _imported_roots(sample) & ML_PACKAGES == {"lightgbm"}
 
     def test_detects_from_imports(self, tmp_path: Path):
         sample = tmp_path / "sample.py"
@@ -240,12 +265,103 @@ class TestMcpSdkIsQuarantined:
         assert importers
 
 
-class TestLayerDependencyDirection:
-    """Acceptance criterion: raw data access is separated from business logic.
+class TestMlLibrariesAreQuarantined:
+    """Milestone 6: only the model package may fit a model."""
 
-    Dependencies must flow strictly downward:
-    api -> services -> analytics -> data -> (domain, config)
-    """
+    @pytest.mark.parametrize("path", _module_files(""), ids=lambda p: p.name)
+    def test_only_the_model_package_imports_an_ml_library(self, path: Path):
+        offenders = _imported_roots(path) & ML_PACKAGES
+        if ML_ADAPTER_PACKAGE in path.as_posix():
+            return
+        assert not offenders, (
+            f"{path.relative_to(SRC).as_posix()} imports {sorted(offenders)}; "
+            f"estimator code belongs in {ML_ADAPTER_PACKAGE}/"
+        )
+
+    def test_the_model_package_exists(self):
+        assert (SRC / ML_ADAPTER_PACKAGE).is_dir()
+
+    def test_the_model_package_actually_uses_the_libraries(self):
+        """A quarantine around a package that never imports them proves nothing."""
+        importers = [
+            path
+            for path in _module_files(ML_ADAPTER_PACKAGE)
+            if _imported_roots(path) & ML_PACKAGES
+        ]
+        assert importers
+
+    def test_exactly_the_agreed_ml_libraries_are_declared(self):
+        pyproject = tomllib.loads((SRC.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+        roots = {
+            re.split(r"[<>=!~\[; ]", entry, maxsplit=1)[0].lower()
+            for entry in pyproject["project"]["dependencies"]
+        }
+        assert "scikit-learn" in roots
+        assert "lightgbm" in roots
+        assert not roots & {"xgboost", "torch", "tensorflow", "mlflow", "dvc"}
+
+    @pytest.mark.parametrize("path", _module_files("ml"), ids=lambda p: p.name)
+    def test_the_ml_layer_never_imports_a_model_provider(self, path: Path):
+        """The prediction layer contains no LLM. That is the milestone's whole point."""
+        offenders = _imported_roots(path) & PROVIDER_ONLY_PACKAGES
+        assert not offenders, f"ml/{path.name} imports {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("ml"), ids=lambda p: p.name)
+    def test_the_ml_layer_never_imports_the_llm_layer(self, path: Path):
+        offenders = {m for m in _imported_modules(path) if m.startswith("nfl_platform.llm")}
+        assert not offenders, f"ml/{path.name} imports the LLM layer"
+
+
+class TestTrainingIsSeparatedFromServing:
+    """Milestone 6: the thing that scores a model cannot fit one."""
+
+    @pytest.mark.parametrize("package", SERVING_PACKAGES, ids=lambda p: p.replace("/", "."))
+    def test_serving_code_never_imports_a_training_module(self, package: str):
+        offenders: dict[str, list[str]] = {}
+        for path in _module_files(package):
+            found = sorted(
+                module
+                for module in _imported_modules(path)
+                if module.startswith(TRAINING_ONLY_MODULES)
+            )
+            if found:
+                offenders[path.relative_to(SRC).as_posix()] = found
+        assert not offenders, f"serving code imports training modules: {offenders}"
+
+    def test_the_training_modules_exist(self):
+        """Guard against the rule passing vacuously if a package is renamed."""
+        for module in TRAINING_ONLY_MODULES:
+            relative = module.removeprefix("nfl_platform.").replace(".", "/")
+            path = SRC / relative
+            assert path.is_dir() or path.with_suffix(".py").is_file(), module
+
+    def test_the_predictors_expose_no_fit_method(self):
+        """`predict` is the whole serving contract; `fit` would widen it silently."""
+        for path in _module_files("ml/predict"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+            assert "fit" not in names, f"ml/predict/{path.name} defines fit()"
+
+
+class TestLayerDependencyDirection:
+    @pytest.mark.parametrize("path", _module_files("ml"), ids=lambda p: p.name)
+    def test_ml_does_not_depend_on_anything_above_it(self, path: Path):
+        """ml sits beside analytics and retrieval: services compose it, it composes nothing."""
+        offenders = {
+            module
+            for module in _imported_modules(path)
+            if module.startswith(
+                ("nfl_platform.services", "nfl_platform.api", "nfl_platform.mcp_server")
+            )
+        }
+        assert not offenders, f"ml/{path.name} imports upward: {sorted(offenders)}"
+
+    @pytest.mark.parametrize("path", _module_files("ml"), ids=lambda p: p.name)
+    def test_ml_never_imports_the_web_framework_or_an_http_client(self, path: Path):
+        offenders = _imported_roots(path) & (
+            {"fastapi", "starlette", "uvicorn"} | HTTP_CLIENT_PACKAGES | MCP_SDK_PACKAGES
+        )
+        assert not offenders, f"ml/{path.name} imports {sorted(offenders)}"
 
     @pytest.mark.parametrize("path", _module_files("analytics"), ids=lambda p: p.name)
     def test_analytics_does_not_depend_on_services_or_api(self, path: Path):

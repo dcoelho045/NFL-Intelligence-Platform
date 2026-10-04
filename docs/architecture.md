@@ -18,6 +18,7 @@ graph TD
     subgraph core["Deterministic core"]
         ANALYTICS["analytics/<br/>pure functions"]
         RETRIEVAL["retrieval/<br/>web search + local RAG"]
+        ML["ml/<br/>features, artifacts, inference"]
         DATA["data/<br/>loader + sources"]
         DOMAIN["domain.py, exceptions.py, tool_errors.py, config/"]
     end
@@ -29,8 +30,10 @@ graph TD
     SERVICES --> SCHEMAS
     SERVICES --> ANALYTICS
     SERVICES --> RETRIEVAL
+    SERVICES --> ML
     ANALYTICS --> DATA
     RETRIEVAL --> DOMAIN
+    ML --> DATA
     DATA --> DOMAIN
 ```
 
@@ -38,21 +41,31 @@ Dependencies flow strictly downward.
 [tests/architecture/test_layering.py](../tests/architecture/test_layering.py)
 asserts this mechanically, so the rule cannot quietly stop being true.
 
-| Layer         | Responsibility                     | May import                                            |
-| ------------- | ---------------------------------- | ----------------------------------------------------- |
-| `api/`        | HTTP mapping and serialisation     | `services`, `schemas`, `llm`                          |
-| `mcp_server/` | MCP mapping and serialisation      | `services`, `schemas`, `domain`                       |
-| `llm/`        | Tool selection and synthesis       | `services`, `schemas`, `domain`                       |
-| `services/`   | Compose, validate, convert to DTOs | `analytics`, `retrieval`, `data`, `schemas`, `domain` |
-| `schemas/`    | Typed contract                     | `domain` only                                         |
-| `analytics/`  | Deterministic computation          | `data`, `domain`                                      |
-| `retrieval/`  | Web search and local RAG           | `schemas`, `domain`, `config`                         |
-| `data/`       | Load and validate nflverse data    | `domain`, `config`                                    |
+| Layer         | Responsibility                     | May import                                                  |
+| ------------- | ---------------------------------- | ----------------------------------------------------------- |
+| `api/`        | HTTP mapping and serialisation     | `services`, `schemas`, `llm`                                |
+| `mcp_server/` | MCP mapping and serialisation      | `services`, `schemas`, `domain`                             |
+| `llm/`        | Tool selection and synthesis       | `services`, `schemas`, `domain`                             |
+| `services/`   | Compose, validate, convert to DTOs | `analytics`, `retrieval`, `ml`, `data`, `schemas`, `domain` |
+| `schemas/`    | Typed contract                     | `domain` only                                               |
+| `analytics/`  | Deterministic computation          | `data`, `domain`                                            |
+| `retrieval/`  | Web search and local RAG           | `schemas`, `domain`, `config`                               |
+| `ml/`         | Features, model artifacts, scoring | `analytics`, `data`, `schemas`, `domain`, `config`          |
+| `data/`       | Load and validate nflverse data    | `domain`, `config`                                          |
 
-`retrieval/` is a peer of `analytics/`, not a part of `llm/`. Both are
-capabilities the service layer composes, and neither knows a model exists --
+`retrieval/` and `ml/` are peers of `analytics/`, not parts of `llm/`. All three
+are capabilities the service layer composes, and none knows a model exists --
 which is what keeps the tool layer free of storage concerns and keeps retrieval
-usable without an LLM. See [rag-design.md](rag-design.md).
+and prediction usable without an LLM. See [rag-design.md](rag-design.md) and
+[ml-predictions.md](ml-predictions.md).
+
+`ml/` has a second boundary inside it that matters as much as the layer rule:
+**training cannot be reached from serving.** No module under `services/`, `api/`,
+`llm/`, `mcp_server/`, `ml/predict/` or `ml/registry/` may import
+`ml.training`, `ml.evaluation`, `ml.datasets` or `ml.cli`, so an API process can
+load and score an artifact but has no code path that fits one. `ml/features/` is
+deliberately on both sides: sharing one feature builder between training and
+inference is the only reliable defence against train/serve skew.
 
 `api/ -> llm/` is allowed; `llm/ -> api/` is not. The assistant is reachable
 _through_ HTTP but does not depend on HTTP, so the CLI and the benchmark script
@@ -83,20 +96,29 @@ tool publishes an `output_schema` a client can rely on before it calls.
 ### 2. The LLM is never the source of a number
 
 Every value the API returns is computed by a deterministic function in
-`analytics/` from nflverse data.
+`analytics/` from nflverse data, or by a fitted model artifact in `ml/`.
 
 Milestone 3 added an assistant without weakening that. The model orchestrates
 services and quotes their output; it never produces a statistic itself. The
 enforcement is structural rather than aspirational:
 
 - `openai` may be imported **only** in `llm/providers/`, asserted by a test.
-- `llm/` may not import `analytics/` or `data/`, so a tool cannot compute.
+- `llm/` may not import `analytics/`, `data/`, `retrieval/` or `ml/`, so a tool
+  cannot compute, retrieve or predict on its own.
+- `ml/` may not import `openai` or `llm/`, so the prediction layer contains no
+  language model. Also asserted by a test.
 - No calculator or code-execution tool exists, so there is no numeric ability to
   reach for.
 - Every number in an answer is matched against the tool results that produced
   it; misses are recorded on the run trace.
 
-See [llm-tools.md](llm-tools.md) for the full boundary.
+Milestone 6 extends this rather than relaxing it. A win probability is still not
+something the assistant may produce: it comes from a versioned artifact, travels
+with the `model_info` that identifies it, and is tagged `SourceKind.MODEL` so it
+stays distinguishable from a measured statistic all the way to the answer.
+
+See [llm-tools.md](llm-tools.md) and [ml-predictions.md](ml-predictions.md) for
+the full boundary.
 
 ### 3. Adapters are siblings, not a stack
 
@@ -135,6 +157,7 @@ classDiagram
         +loader
         +directory +players +teams
         +matchups +fantasy +meta
+        +research +knowledge +predictions
     }
     AnalyticsService <|-- PlayerDirectoryService
     AnalyticsService <|-- PlayerAnalyticsService
@@ -144,15 +167,21 @@ classDiagram
     AnalyticsService <|-- MetaService
     ServiceContainer --> PlayerAnalyticsService
     ServiceContainer --> TeamAnalyticsService
+    ServiceContainer --> PredictionService
     PlayerAnalyticsService --> PlayerDirectoryService
     TeamAnalyticsService --> PlayerAnalyticsService
     MatchupAnalyticsService --> TeamAnalyticsService
     FantasyAnalyticsService --> TeamAnalyticsService
+    PredictionService --> PlayerDirectoryService
 ```
 
 `AnalyticsService` is a shared implementation base, not an abstract interface.
 Subclasses inherit the loader and the frame-to-DTO helpers; there is no contract
 to declare abstract, so it is a plain class.
+
+`PredictionService` deliberately does **not** extend it. It shares none of the
+season-window plumbing, and inheriting would imply it is another view over
+measured data when its whole purpose is to be a different kind of claim.
 
 `ServiceContainer` is the composition root. One container owns one loader, and
 every service shares it — which matters because the loader memoises datasets, so
@@ -210,6 +239,7 @@ serialise every request. Plain `def` lets Starlette run them in a threadpool.
 | In-process      | `NflDataLoader` memo keyed by dataset/seasons/kwargs | process lifetime              |
 | Web search      | bounded in-process TTL cache, never written to disk  | 15 minutes, default           |
 | Knowledge index | Parquet file loaded once per process                 | until rebuilt                 |
+| Model artifacts | loaded once per process, keyed by (problem, version) | until the registry is cleared |
 | Reproducibility | `SnapshotStore` Parquet + manifest                   | until deleted                 |
 
 Web results are deliberately not persisted: the cache is in-process and bounded,
@@ -219,16 +249,17 @@ One container per process means the memo stays warm across requests.
 
 ## What is deliberately absent
 
-| Not present               | Why                                                           | Arrives in    |
-| ------------------------- | ------------------------------------------------------------- | ------------- |
-| Hosted vector database    | 97 chunks scan exactly in under a millisecond; see rag-design | if measured   |
-| Reranker / query rewriter | Retrieval hit@1 is already 1.00; nothing left to improve      | if measured   |
-| `fetch_url` tool          | Removes SSRF and the inject-a-link escalation path entirely   | if justified  |
-| MCP over HTTP             | stdio needs no port or auth; HTTP needs both to be worth it   | if justified  |
-| ML models                 | Needs a baseline and evaluation harness                       | 6             |
-| Agent framework           | One loop with no branching does not need one                  | 7             |
-| PostgreSQL                | Nothing yet needs transactions or concurrent writes           | when required |
-| Authentication            | Read-only public data on localhost                            | 11            |
+| Not present                | Why                                                            | Arrives in    |
+| -------------------------- | -------------------------------------------------------------- | ------------- |
+| Hosted vector database     | 97 chunks scan exactly in under a millisecond; see rag-design  | if measured   |
+| Reranker / query rewriter  | Retrieval hit@1 is already 1.00; nothing left to improve       | if measured   |
+| `fetch_url` tool           | Removes SSRF and the inject-a-link escalation path entirely    | if justified  |
+| MCP over HTTP              | stdio needs no port or auth; HTTP needs both to be worth it    | if justified  |
+| Deep-learning model        | GBDTs and linear models beat it at this row count; see ml docs | if measured   |
+| Fantasy availability model | Projections are conditional on playing and say so              | if justified  |
+| Agent framework            | One loop with no branching does not need one                   | 7             |
+| PostgreSQL                 | Nothing yet needs transactions or concurrent writes            | when required |
+| Authentication             | Read-only public data on localhost                             | 11            |
 
 The absence of authentication is a decision, not an oversight: the API binds to
 localhost and exposes only public data. Anything internet-facing needs it first.

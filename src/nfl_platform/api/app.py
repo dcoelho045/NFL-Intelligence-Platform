@@ -18,7 +18,16 @@ from fastapi import FastAPI
 
 from nfl_platform import __version__
 from nfl_platform.api.errors import register_exception_handlers
-from nfl_platform.api.routers import assistant, fantasy, health, matchups, meta, players, teams
+from nfl_platform.api.routers import (
+    assistant,
+    fantasy,
+    health,
+    matchups,
+    meta,
+    players,
+    predictions,
+    teams,
+)
 from nfl_platform.config.logging import configure_logging, get_logger
 from nfl_platform.config.settings import Settings, get_settings
 from nfl_platform.llm.agent import NflAnalystAgent
@@ -48,6 +57,9 @@ answers carry the list of tool calls that produced them.
 * Player endpoints accept a GSIS id or a name. Ambiguous names return **409**
   with the candidate players rather than a guess.
 * Matchup analysis is descriptive. It contains no prediction.
+* `/predictions` is the only part of this API where a number refers to a game
+  that has not been played. Those values come from versioned ML artifacts, carry
+  the model that produced them, and are never mixed into the analytics responses.
 """
 
 TAGS_METADATA = [
@@ -57,6 +69,14 @@ TAGS_METADATA = [
     {"name": "matchups", "description": "Descriptive two-team comparison."},
     {"name": "fantasy", "description": "Fantasy production, trends, and matchup context."},
     {"name": "meta", "description": "Valid teams and seasons."},
+    {
+        "name": "predictions",
+        "description": (
+            "Machine-learning predictions. Estimates about unplayed games, produced by "
+            "versioned model artifacts, never by a language model. Requires trained "
+            "models to be installed."
+        ),
+    },
     {
         "name": "assistant",
         "description": "Tool-calling LLM assistant. Requires a configured provider key.",
@@ -104,7 +124,7 @@ def create_app(
     register_exception_handlers(app)
 
     app.include_router(health.router)
-    for module in (players, teams, matchups, fantasy, meta, assistant):
+    for module in (players, teams, matchups, fantasy, meta, predictions, assistant):
         app.include_router(module.router, prefix=API_PREFIX)
 
     return app

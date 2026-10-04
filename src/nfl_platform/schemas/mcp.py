@@ -37,6 +37,21 @@ class ServerStatus(BaseDTO):
     knowledge_base_chunks: int | None = None
     embedding_model: str | None = None
     knowledge_base_built_at: str | None = None
+    predictions_enabled: bool = Field(
+        default=False,
+        description="Whether the prediction tools may run on this deployment.",
+    )
+    prediction_models_available: bool = Field(
+        default=False,
+        description=(
+            "Whether at least one trained model artifact is installed and loadable. "
+            "False means predictions cannot be produced; it says nothing about any game."
+        ),
+    )
+    prediction_models: list[str] = Field(
+        default_factory=list,
+        description="Installed model identifiers, as '<problem>/<version>'.",
+    )
 
 
 class ReferenceData(BaseDTO):

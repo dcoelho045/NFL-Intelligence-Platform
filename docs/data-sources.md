@@ -2,7 +2,7 @@
 
 Every dataset this project consumes, why it is included, and what it costs.
 
-There are three, and they do not overlap:
+There are three _external_ sources, and they do not overlap:
 
 | Source                                    | Answers                | Authoritative for   |
 | ----------------------------------------- | ---------------------- | ------------------- |
@@ -13,6 +13,11 @@ There are three, and they do not overlap:
 The latter two arrived in Milestone 4 and are documented in
 [rag-design.md](rag-design.md). Statistics are never retrieved; retrieved text
 is never treated as a statistic.
+
+A fourth source is **computed, not fetched**: the prediction models in
+`data/models` answer "what might happen" and are authoritative for nothing that
+has already occurred. They are trained from a pinned nflverse snapshot and add
+no upstream dependency. See [ml-predictions.md](ml-predictions.md).
 
 ## Upstream provider
 
@@ -55,6 +60,21 @@ edit to the registry in
 | `injuries`       | `load_injuries`       | Official injury designations and practice participation. Backs `get_injury_information`.              |
 | `snap_counts`    | `load_snap_counts`    | Snap share, the cleanest available usage signal. Backs `get_player_usage`.                            |
 | `ff_opportunity` | `load_ff_opportunity` | Expected fantasy points, useful for separating usage from finishing luck.                             |
+
+### What model training reads
+
+Training pins `schedules`, `team_stats`, `player_stats`, `snap_counts`,
+`ff_opportunity` and `players` into a named `SnapshotStore` snapshot
+(`python scripts/train_models.py snapshot`), then reads only that copy. Pinning
+is what makes a recorded metric reproducible: nflverse revises historical rows,
+so "train on the latest" quietly means something different each month.
+
+`play_by_play` is **not** used by the v1 models. It is the richest dataset here
+and also several gigabytes; the features it would add (success rate, early-down
+EPA, red-zone usage) were judged not worth that cost until the current models
+plateau. Dataset season coverage differs — `snap_counts` begins in 2012 and
+`ff_opportunity` in 2006 — so the snapshot requests the intersection per
+dataset rather than failing the whole run on the shortest one.
 
 ### Deliberately excluded
 

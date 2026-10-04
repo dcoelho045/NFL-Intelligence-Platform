@@ -258,6 +258,54 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Prediction models (Milestone 6) ---------------------------------
+    model_dir: Path = Field(
+        default=Path("data/models"),
+        description=(
+            "Directory of trained model artifacts. Derived output, not committed: "
+            "rebuild with scripts/train_models.py."
+        ),
+    )
+    ml_enable_predictions: bool = Field(
+        default=True,
+        description=(
+            "Whether the prediction surface is switched on. False keeps the tools in "
+            "the catalogue but makes every call report the capability as off, which is "
+            "not the same as a model declining to predict."
+        ),
+    )
+    game_model_version: str | None = Field(
+        default=None,
+        description="Pin a game-prediction artifact version. None uses the registry default.",
+    )
+    fantasy_model_version: str | None = Field(
+        default=None,
+        description="Pin a fantasy-projection artifact version. None uses the registry default.",
+    )
+    ml_random_seed: int = Field(
+        default=1799,
+        ge=0,
+        description="Seed for every estimator, shuffle and sampler in the training pipeline.",
+    )
+    ml_min_history_games: int = Field(
+        default=3,
+        ge=1,
+        le=16,
+        description=(
+            "Completed games required before a prediction is served. Below this the "
+            "service raises rather than emitting a confident-looking guess built from "
+            "one game of history."
+        ),
+    )
+    ml_training_snapshot: str = Field(
+        default="training",
+        min_length=1,
+        description=(
+            "Snapshot name under snapshot_dir that training reads from. Pinning the "
+            "input is what makes a re-run reproduce the recorded metrics."
+        ),
+    )
+
     @field_validator("default_season", mode="before")
     @classmethod
     def _blank_season_is_none(cls, value: object) -> object:
@@ -288,6 +336,14 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("game_model_version", "fantasy_model_version", mode="before")
+    @classmethod
+    def _blank_version_is_none(cls, value: object) -> object:
+        """``NFL_GAME_MODEL_VERSION=`` means "use the registry default"."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @field_validator("web_search_allowed_domains", "web_search_blocked_domains", mode="before")
     @classmethod
     def _split_domain_list(cls, value: object) -> object:
@@ -312,6 +368,9 @@ class Settings(BaseSettings):
 
     def resolved_knowledge_index_path(self) -> Path:
         return self.knowledge_index_path.expanduser().resolve()
+
+    def resolved_model_dir(self) -> Path:
+        return self.model_dir.expanduser().resolve()
 
 
 @lru_cache(maxsize=1)

@@ -91,3 +91,17 @@ def register_prompts(mcp: MCPServer) -> None:
         return load_template("player_performance_review").format(
             player=player.strip(), when=_when("", season)
         )
+
+    @mcp.prompt(title="Predict a game")
+    def predict_game(
+        home_team: TeamArg,
+        away_team: TeamArg,
+        week: WeekArg = "",
+        season: Annotated[str, Field(default="", max_length=16)] = "",
+    ) -> str:
+        """Get the model's win probability, then explain it from deterministic analytics."""
+        return load_template("predict_game").format(
+            home_team=home_team.strip(),
+            away_team=away_team.strip(),
+            when=_when(week, season),
+        )

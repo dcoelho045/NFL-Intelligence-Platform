@@ -38,6 +38,12 @@ from nfl_platform.llm.tools.players import (
     GetPlayerUsageTool,
     SearchPlayersTool,
 )
+from nfl_platform.llm.tools.predictions import (
+    CompareFantasyProjectionsTool,
+    PredictGameTool,
+    PredictSlateTool,
+    ProjectFantasyPointsTool,
+)
 from nfl_platform.llm.tools.research import SearchKnowledgeBaseTool, SearchWebTool
 from nfl_platform.llm.tools.teams import (
     GetMatchupTool,
@@ -71,6 +77,10 @@ DEFAULT_TOOL_TYPES: tuple[type[Tool[Any]], ...] = (
     ListReferenceDataTool,
     SearchWebTool,
     SearchKnowledgeBaseTool,
+    PredictGameTool,
+    PredictSlateTool,
+    ProjectFantasyPointsTool,
+    CompareFantasyProjectionsTool,
 )
 
 

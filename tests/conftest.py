@@ -16,6 +16,11 @@ import pytest
 
 from nfl_platform.config.settings import Settings
 from nfl_platform.data.ingestion import NflDataLoader, ParquetDataSource
+from nfl_platform.data.ingestion.datasets import Dataset
+from nfl_platform.ml.features.fantasy import build_fantasy_features
+from nfl_platform.ml.features.games import build_game_features
+from nfl_platform.ml.registry.store import ModelRegistry
+from nfl_platform.ml.training.pipeline import train_fantasy_models, train_game_models
 from nfl_platform.retrieval.knowledge.chunking import chunk_document
 from nfl_platform.retrieval.knowledge.corpus import corpus_fingerprint, load_corpus
 from nfl_platform.retrieval.knowledge.embeddings import FakeEmbedder
@@ -30,6 +35,7 @@ from support import (
     CountingDataSource,
     StubWebSearchProvider,
 )
+from synthetic import SyntheticLeague, build_league
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "nflverse"
 
@@ -142,3 +148,110 @@ def services(
 @pytest.fixture
 def counting_source(fixture_source: ParquetDataSource) -> CountingDataSource:
     return CountingDataSource(fixture_source)
+
+
+# --- prediction fixtures (Milestone 6) ---------------------------------------
+# The committed nflverse fixture is two teams over six weeks, which is fine for
+# analytics assertions and useless for a time-aware model needing ten complete
+# seasons. These fixtures stand up a generated league instead, so the prediction
+# surface is exercisable end to end with no network and no real training run.
+
+
+@pytest.fixture(scope="session")
+def synthetic_league() -> SyntheticLeague:
+    return build_league()
+
+
+@pytest.fixture(scope="session")
+def synthetic_data_dir(
+    synthetic_league: SyntheticLeague, tmp_path_factory: pytest.TempPathFactory
+) -> Path:
+    """The synthetic league written out as nflverse-shaped Parquet files."""
+    directory = tmp_path_factory.mktemp("synthetic-nflverse")
+    for dataset, frame in (
+        (Dataset.SCHEDULES, synthetic_league.schedules),
+        (Dataset.TEAM_STATS, synthetic_league.team_stats),
+        (Dataset.PLAYER_STATS, synthetic_league.player_stats),
+        (Dataset.SNAP_COUNTS, synthetic_league.snap_counts),
+        (Dataset.FF_OPPORTUNITY, synthetic_league.ff_opportunity),
+        (Dataset.PLAYERS, synthetic_league.players),
+    ):
+        frame.write_parquet(directory / f"{dataset.value}.parquet")
+    return directory
+
+
+@pytest.fixture(scope="session")
+def trained_model_dir(
+    synthetic_league: SyntheticLeague, tmp_path_factory: pytest.TempPathFactory
+) -> Path:
+    """Train both problems on the synthetic league once per session.
+
+    Real training, not stubs: the artifacts under test are produced by the same
+    pipeline production uses, so a change that breaks serialisation or promotion
+    fails here rather than in a hand-written double that quietly drifted.
+    """
+    directory = tmp_path_factory.mktemp("models")
+    settings = Settings(_env_file=None, model_dir=directory)
+    registry = ModelRegistry(root=directory, settings=settings)
+
+    game = build_game_features(synthetic_league.schedules, synthetic_league.team_stats)
+    fantasy = build_fantasy_features(
+        synthetic_league.player_stats,
+        synthetic_league.schedules,
+        team_stats=synthetic_league.team_stats,
+        snap_counts=synthetic_league.snap_counts,
+        ff_opportunity=synthetic_league.ff_opportunity,
+        players=synthetic_league.players,
+    )
+    for outcome in (
+        train_game_models(game, settings=settings, snapshot="synthetic"),
+        train_fantasy_models(fantasy, settings=settings, snapshot="synthetic"),
+    ):
+        for artifact in outcome.artifacts:
+            registry.save(
+                artifact, make_default=artifact.metadata.version == outcome.default_version
+            )
+    return directory
+
+
+@pytest.fixture
+def prediction_settings(trained_model_dir: Path, synthetic_league: SyntheticLeague) -> Settings:
+    return Settings(
+        _env_file=None,
+        model_dir=trained_model_dir,
+        default_season=synthetic_league.seasons[-1],
+        embedding_provider="fake",
+        knowledge_dir=KNOWLEDGE_FIXTURE_DIR,
+        ml_min_history_games=3,
+    )
+
+
+@pytest.fixture
+def prediction_loader(
+    synthetic_data_dir: Path, prediction_settings: Settings, synthetic_league: SyntheticLeague
+) -> NflDataLoader:
+    return NflDataLoader(
+        source=ParquetDataSource(synthetic_data_dir),
+        settings=prediction_settings,
+        current_season=synthetic_league.seasons[-1],
+    )
+
+
+@pytest.fixture
+def prediction_services(
+    prediction_loader: NflDataLoader,
+    prediction_settings: Settings,
+    trained_model_dir: Path,
+) -> ServiceContainer:
+    """A container whose prediction service has real artifacts and real data."""
+    return ServiceContainer(
+        loader=prediction_loader,
+        settings=prediction_settings,
+        model_registry=ModelRegistry(root=trained_model_dir, settings=prediction_settings),
+    )
+
+
+@pytest.fixture
+def empty_model_registry(tmp_path: Path, settings: Settings) -> ModelRegistry:
+    """A registry pointing at a directory with no artifacts in it."""
+    return ModelRegistry(root=tmp_path / "no-models", settings=settings)

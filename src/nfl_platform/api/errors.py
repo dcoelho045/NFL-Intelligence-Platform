@@ -17,12 +17,17 @@ from nfl_platform.config.logging import get_logger
 from nfl_platform.exceptions import (
     AmbiguousPlayerError,
     DatasetNotAvailableError,
+    FeatureSchemaMismatchError,
+    InsufficientHistoryError,
     InvalidGameCountError,
     InvalidSeasonError,
     InvalidWeekError,
     KnowledgeIndexUnavailableError,
     LlmConfigurationError,
     LlmProviderError,
+    ModelArtifactInvalidError,
+    ModelNotAvailableError,
+    ModelVersionNotFoundError,
     NflPlatformError,
     PlayerNotFoundError,
     SchemaValidationError,
@@ -222,6 +227,63 @@ def _knowledge_index_unavailable(_: Request, exc: KnowledgeIndexUnavailableError
     )
 
 
+def _model_not_available(_: Request, exc: ModelNotAvailableError) -> JSONResponse:
+    """503: the analytics endpoints still work; only prediction is unavailable."""
+    return _response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "model_not_available",
+        str(exc),
+        {
+            "problem": exc.problem,
+            "hint": "Train models with: python scripts/train_models.py",
+        },
+    )
+
+
+def _model_version_not_found(_: Request, exc: ModelVersionNotFoundError) -> JSONResponse:
+    return _response(
+        status.HTTP_404_NOT_FOUND,
+        "model_version_not_found",
+        str(exc),
+        {"problem": exc.problem, "version": exc.version, "installed": list(exc.known)},
+    )
+
+
+def _model_artifact_invalid(_: Request, exc: ModelArtifactInvalidError) -> JSONResponse:
+    """500: a damaged artifact is our problem, and refusing to serve it is the point."""
+    logger.error("Model artifact failed validation", extra={"path": exc.path})
+    return _response(
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "model_artifact_invalid",
+        str(exc),
+        {"hint": "Retrain with: python scripts/train_models.py"},
+    )
+
+
+def _feature_schema_mismatch(_: Request, exc: FeatureSchemaMismatchError) -> JSONResponse:
+    """500: the artifact and the feature builder have diverged, so no number is safe."""
+    logger.error(
+        "Feature schema mismatch",
+        extra={"model": exc.model_id, "missing": list(exc.missing)},
+    )
+    return _response(
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "feature_schema_mismatch",
+        str(exc),
+        {"hint": "The installed model predates the current features. Retrain it."},
+    )
+
+
+def _insufficient_history(_: Request, exc: InsufficientHistoryError) -> JSONResponse:
+    """422: a valid request the model cannot answer yet, not a server fault."""
+    return _response(
+        HTTP_422_UNPROCESSABLE,
+        "insufficient_history",
+        str(exc),
+        {"subject": exc.subject, "available": exc.available, "required": exc.required},
+    )
+
+
 # Ordered specific-to-general; FastAPI dispatches on the exact class then walks
 # the MRO, so the base-class entry only catches what is not listed above it.
 _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
@@ -240,6 +302,11 @@ _HANDLERS: tuple[tuple[type[Exception], Callable[..., JSONResponse]], ...] = (
     (WebSearchNotConfiguredError, _web_search_not_configured),
     (WebSearchError, _web_search_error),
     (KnowledgeIndexUnavailableError, _knowledge_index_unavailable),
+    (ModelNotAvailableError, _model_not_available),
+    (ModelVersionNotFoundError, _model_version_not_found),
+    (ModelArtifactInvalidError, _model_artifact_invalid),
+    (FeatureSchemaMismatchError, _feature_schema_mismatch),
+    (InsufficientHistoryError, _insufficient_history),
     (NflPlatformError, _platform_error),
     (ValueError, _value_error),
 )

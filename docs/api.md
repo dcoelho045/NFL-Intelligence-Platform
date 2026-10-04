@@ -139,8 +139,11 @@ home games" and "last N away games" rather than N games divided unevenly.
 Returns both sides' offence, defence, and form, plus the scheduled fixture and
 head-to-head history.
 
-**Contains no prediction.** No win probability, no projected score. A predictive
-endpoint arrives in a later milestone and will be explicitly labelled as such.
+**Contains no prediction.** No win probability, no projected score. Prediction
+lives under `/api/v1/predictions`, where every response names the model that
+produced it. The split is deliberate: a descriptive comparison and a model
+estimate are different kinds of claim, and the URL should say which you asked
+for.
 
 ### Fantasy — `/api/v1/fantasy`
 
@@ -259,6 +262,45 @@ Three fields make the answer checkable rather than merely plausible:
 `history` carries earlier turns; the assistant holds no server-side session
 state. See [llm-tools.md](llm-tools.md) for the full boundary.
 
+### Predictions — `/api/v1/predictions`
+
+| Method | Path                               | Purpose                                  |
+| ------ | ---------------------------------- | ---------------------------------------- |
+| GET    | `/models`                          | Which models are installed, and on what  |
+| GET    | `/game?home_team=KC&away_team=BUF` | Home win probability for one game        |
+| GET    | `/slate/{season}/{week}`           | Every game the model can score that week |
+| GET    | `/fantasy/{player_id}`             | Projected PPR points for one player      |
+| POST   | `/fantasy/compare`                 | Rank several players for one week        |
+
+**This is the only part of the API where a number describes a game that has not
+been played.** Values come from versioned model artifacts, never from a language
+model. See [ml-predictions.md](ml-predictions.md).
+
+Every prediction carries three blocks, none optional:
+
+- `model_info` — which artifact, trained on which seasons, scoring what on
+  validation, and whether its probabilities were calibrated.
+- `basis` — how much completed-game history the features were built from.
+- `caveats` — why the number should be read carefully.
+
+Two fields exist specifically so a prediction can be judged rather than merely
+read. `baseline_home_win_probability` shows what the trivial "home teams usually
+win" answer says, so the model's contribution is visible.
+`market_home_win_probability` is derived from the published closing spread where
+one exists — **a reference point, not a model input.** Presenting them as the
+same number would misrepresent both.
+
+`/models` returns **200 even when nothing is installed**; `available` and `notes`
+carry that fact. A status endpoint that fails when its subject is missing cannot
+do its job. Every other prediction route returns `503 model_not_available`.
+
+Fantasy projections are **conditional on the player playing**
+(`conditional_on_playing: true` on every response). They contain no estimate of
+the chance he is inactive, so pair them with `/players/{id}/injuries`.
+
+Only PPR is modelled. A standard-scoring request is refused rather than answered
+with a PPR number under the wrong label.
+
 ## Errors
 
 Every failure returns the same shape:
@@ -281,10 +323,20 @@ Every failure returns the same shape:
 | 422    | `invalid_week`             | Outside 1–22                                          |
 | 422    | `invalid_game_count`       | `last_n_games` not a positive integer                 |
 | 422    | `invalid_request`          | Other argument errors                                 |
+| 422    | `insufficient_history`     | Too few completed games to build prediction features  |
 | 500    | `schema_validation_failed` | Upstream nflverse schema drift — our problem          |
+| 500    | `model_artifact_invalid`   | A model artifact failed its integrity check           |
+| 500    | `feature_schema_mismatch`  | Installed model predates the current features         |
 | 502    | `llm_provider_error`       | The model provider failed; `context.retryable`        |
 | 503    | `data_source_unavailable`  | nflverse unreachable — transient, retry               |
 | 503    | `llm_not_configured`       | No provider key; assistant only, analytics unaffected |
+| 503    | `model_not_available`      | No trained model installed; predictions only          |
+| 404    | `model_version_not_found`  | A pinned model version is not installed               |
+
+The prediction errors share one principle with the retrieval errors: **a
+capability that cannot run is never reported as a finding.** `503
+model_not_available` means no model is installed, which says nothing about the
+game. It is not a 50/50 probability, and no endpoint will substitute one.
 
 ### 409 is the important one
 
@@ -343,7 +395,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/players/compare" \
 ## Using the services without HTTP
 
 The API is one adapter. The services it calls are importable directly, which is
-how Milestones 3 and 5 will use them:
+how the assistant, the MCP server and the prediction layer use them:
 
 ```python
 from nfl_platform.services import ServiceContainer
@@ -351,6 +403,9 @@ from nfl_platform.services import ServiceContainer
 container = ServiceContainer()
 stats = container.players.recent_performance("00-0033873", seasons=2024, last_n_games=4)
 print(stats.per_game.passing_yards)
+
+prediction = container.predictions.predict_game("KC", "BUF", season=2025, week=1)
+print(prediction.home_win_probability, prediction.model_info.model_id)
 ```
 
 Same types, same validation, same errors — no HTTP involved.

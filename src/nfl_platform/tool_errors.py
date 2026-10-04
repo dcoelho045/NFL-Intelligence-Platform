@@ -23,12 +23,17 @@ from nfl_platform.exceptions import (
     AmbiguousPlayerError,
     DatasetNotAvailableError,
     EmbeddingError,
+    FeatureSchemaMismatchError,
+    InsufficientHistoryError,
     InvalidGameCountError,
     InvalidSeasonError,
     InvalidWeekError,
     KnowledgeDocumentNotFoundError,
     KnowledgeIndexStaleError,
     KnowledgeIndexUnavailableError,
+    ModelArtifactInvalidError,
+    ModelNotAvailableError,
+    ModelVersionNotFoundError,
     NflPlatformError,
     PlayerNotFoundError,
     SchemaValidationError,
@@ -329,6 +334,77 @@ def _platform_error(exc: NflPlatformError) -> ToolErrorDetail:
     )
 
 
+def _model_not_available(exc: ModelNotAvailableError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "model_not_available",
+        str(exc),
+        recovery=(
+            "No prediction model is installed on this deployment. This is a configuration "
+            "state, not a model declining to forecast, and it is not evidence about the "
+            "game. Do not retry and do not estimate a probability or a projection "
+            "yourself. Answer from the deterministic analytics tools if the question "
+            "allows it, and say plainly that no model prediction is available."
+        ),
+        context={"problem": exc.problem},
+        retryable=False,
+    )
+
+
+def _model_version_not_found(exc: ModelVersionNotFoundError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "model_version_not_found",
+        str(exc),
+        recovery="Omit the version argument to use this deployment's default model.",
+        context={"problem": exc.problem, "version": exc.version, "installed": list(exc.known)},
+        retryable=False,
+    )
+
+
+def _model_artifact_invalid(exc: ModelArtifactInvalidError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "model_artifact_invalid",
+        str(exc),
+        recovery=(
+            "The stored model failed its integrity check and will not be used. Do not "
+            "retry. Report that predictions are unavailable rather than substituting an "
+            "estimate of your own."
+        ),
+        retryable=False,
+    )
+
+
+def _feature_schema_mismatch(exc: FeatureSchemaMismatchError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "feature_schema_mismatch",
+        str(exc),
+        recovery=(
+            "The installed model does not match the current feature definitions, so any "
+            "number it produced would be computed from the wrong inputs. Report that "
+            "predictions are unavailable."
+        ),
+        context={"model": exc.model_id, "missing": list(exc.missing)},
+        retryable=False,
+    )
+
+
+def _insufficient_history(exc: InsufficientHistoryError) -> ToolErrorDetail:
+    return ToolErrorDetail(
+        "insufficient_history",
+        str(exc),
+        recovery=(
+            "There is not enough completed-game history to build this prediction. Ask "
+            "about a later week, or use the deterministic analytics tools to describe "
+            "what has happened so far. Do not guess a value to fill the gap."
+        ),
+        context={
+            "subject": exc.subject,
+            "available_games": exc.available,
+            "required_games": exc.required,
+        },
+        retryable=False,
+    )
+
+
 # Ordered specific-to-general; the first isinstance match wins.
 _HANDLERS: tuple[tuple[type[Exception], Callable[[Any], ToolErrorDetail]], ...] = (
     (AmbiguousPlayerError, _ambiguous_player),
@@ -349,6 +425,11 @@ _HANDLERS: tuple[tuple[type[Exception], Callable[[Any], ToolErrorDetail]], ...] 
     (KnowledgeIndexUnavailableError, _knowledge_index_unavailable),
     (KnowledgeDocumentNotFoundError, _knowledge_document_not_found),
     (EmbeddingError, _embedding_failed),
+    (ModelNotAvailableError, _model_not_available),
+    (ModelVersionNotFoundError, _model_version_not_found),
+    (ModelArtifactInvalidError, _model_artifact_invalid),
+    (FeatureSchemaMismatchError, _feature_schema_mismatch),
+    (InsufficientHistoryError, _insufficient_history),
     (NflPlatformError, _platform_error),
     (ValueError, _value_error),
 )

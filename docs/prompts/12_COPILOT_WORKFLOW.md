@@ -45,6 +45,7 @@ Run the full applicable test suite yourself.
 
 ## Git Workflow
 
+If on main branch, create a new branch
 Use one branch per milestone if practical:
 
 ```text

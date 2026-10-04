@@ -21,6 +21,7 @@ from nfl_platform.exceptions import NflPlatformError
 from nfl_platform.mcp_server.errors import resource_errors
 from nfl_platform.schemas.evidence import KnowledgeCorpusIndex, KnowledgeDocument
 from nfl_platform.schemas.mcp import ReferenceData, ServerStatus
+from nfl_platform.schemas.prediction import ModelRegistryStatus
 from nfl_platform.services.container import ServiceContainer
 
 __all__ = ["register_resources"]
@@ -44,6 +45,7 @@ def register_resources(mcp: MCPServer, container: ServiceContainer, settings: Se
             current_season, data_layer_available = None, False
 
         web_enabled = settings.mcp_enable_web_search
+        models = container.predictions.model_status()
         return ServerStatus(
             server_name=settings.mcp_server_name,
             version=__version__,
@@ -57,7 +59,28 @@ def register_resources(mcp: MCPServer, container: ServiceContainer, settings: Se
             knowledge_base_chunks=chunks,
             embedding_model=model,
             knowledge_base_built_at=built_at,
+            predictions_enabled=models.enabled,
+            prediction_models_available=models.available,
+            prediction_models=[entry.model_id for entry in models.models],
         )
+
+    @mcp.resource(
+        "nfl://models",
+        title="Installed prediction models",
+        mime_type="application/json",
+    )
+    def models() -> ModelRegistryStatus:
+        """Which prediction models are installed, and what each was trained on.
+
+        Read this before quoting a prediction. It carries the training seasons,
+        the frozen test period, the validation score and whether probabilities
+        were calibrated -- the context that turns a probability into a claim a
+        reader can judge.
+
+        Never fails when nothing is installed: ``available`` reports that, which
+        is the question this resource exists to answer.
+        """
+        return container.predictions.model_status()
 
     @mcp.resource(
         "nfl://reference/seasons",

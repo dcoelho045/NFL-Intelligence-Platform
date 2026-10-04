@@ -273,3 +273,98 @@ class EmbeddingError(RetrievalError):
         self.provider = provider
         self.reason = reason
         super().__init__(f"Embedding via {provider!r} failed: {reason}")
+
+
+class PredictionError(NflPlatformError):
+    """Base class for failures in the prediction layer."""
+
+
+class ModelNotAvailableError(PredictionError):
+    """No usable artifact exists for a prediction problem on this deployment.
+
+    A configuration state, not a model declining to predict. Callers must report
+    it as "this capability is not installed" and never substitute a guess, which
+    is why nothing here falls back to a coin flip or a league average.
+    """
+
+    def __init__(self, problem: str, reason: str) -> None:
+        self.problem = problem
+        self.reason = reason
+        super().__init__(
+            f"No prediction model is available for {problem!r}: {reason}. "
+            "Train one with: python scripts/train_models.py"
+        )
+
+
+class ModelVersionNotFoundError(PredictionError):
+    """A specific artifact version was requested but is not installed."""
+
+    def __init__(self, problem: str, version: str, known: tuple[str, ...] = ()) -> None:
+        self.problem = problem
+        self.version = version
+        self.known = known
+        suffix = f" Installed versions: {', '.join(known)}." if known else ""
+        super().__init__(f"No {problem!r} model version {version!r}.{suffix}")
+
+
+class ModelArtifactInvalidError(PredictionError):
+    """An artifact is unreadable, fails its checksum, or has an unsupported layout.
+
+    Refusing to load is the point. A tampered or truncated artifact that still
+    produces numbers is worse than one that does not load, because the numbers
+    look exactly like trustworthy ones.
+    """
+
+    def __init__(self, path: str, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Model artifact at {path!r} is invalid: {reason}")
+
+
+class FeatureSchemaMismatchError(PredictionError):
+    """Features built at inference time do not match what the artifact was trained on.
+
+    The train/serve skew guard. Scoring a model with columns in a different
+    order, or with a feature it never saw, yields a plausible number computed
+    from the wrong inputs.
+    """
+
+    def __init__(
+        self,
+        model_id: str,
+        *,
+        missing: tuple[str, ...] = (),
+        unexpected: tuple[str, ...] = (),
+        reordered: bool = False,
+    ) -> None:
+        self.model_id = model_id
+        self.missing = missing
+        self.unexpected = unexpected
+        self.reordered = reordered
+        parts: list[str] = []
+        if missing:
+            parts.append(f"missing {', '.join(missing)}")
+        if unexpected:
+            parts.append(f"unexpected {', '.join(unexpected)}")
+        if reordered:
+            parts.append("feature order differs")
+        detail = "; ".join(parts) or "schema differs"
+        super().__init__(f"Feature schema mismatch for model {model_id!r}: {detail}.")
+
+
+class InsufficientHistoryError(PredictionError):
+    """Too few completed games exist to build the features a model requires.
+
+    Week 1 for an expansion-like roster, a just-traded player, or a season the
+    snapshot does not cover. Reported rather than back-filled with zeros, since
+    a zero-filled feature row scores as a confident prediction about nothing.
+    """
+
+    def __init__(self, subject: str, available: int, required: int) -> None:
+        self.subject = subject
+        self.available = available
+        self.required = required
+        super().__init__(
+            f"Not enough history for {subject}: {available} completed game(s) available, "
+            f"{required} required. Ask about a later week, or a season with more data."
+        )

@@ -99,14 +99,14 @@ Return:
 
 ## Acceptance Criteria
 
-- [ ] Baseline exists
-- [ ] Stronger ML model exists
-- [ ] Time-aware evaluation exists
-- [ ] Metrics are recorded
-- [ ] No temporal leakage
-- [ ] Model artifacts are versioned appropriately
-- [ ] Prediction service integrates with the existing application
-- [ ] PyTorch experiment is documented if implemented
+- [x] Baseline exists
+- [x] Stronger ML model exists
+- [x] Time-aware evaluation exists
+- [x] Metrics are recorded
+- [x] No temporal leakage
+- [x] Model artifacts are versioned appropriately
+- [x] Prediction service integrates with the existing application
+- [x] PyTorch experiment is documented if implemented
 
 ## Copilot Instructions
 

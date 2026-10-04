@@ -17,7 +17,7 @@ from nfl_platform.retrieval.knowledge.store import VectorStore
 from nfl_platform.retrieval.web.cache import SearchCache
 from nfl_platform.retrieval.web.provider import NullSearchProvider
 from nfl_platform.retrieval.web.search import WebSearchClient
-from nfl_platform.schemas.evidence import SourceKind
+from nfl_platform.schemas.evidence import RETRIEVAL_KINDS, SourceKind
 from nfl_platform.services import ServiceContainer
 from support import MAHOMES_ID, StubWebSearchProvider, failing_web_provider
 
@@ -220,8 +220,6 @@ class TestAnalyticsStillOwnsStatistics:
     def test_only_two_retrieval_tools_were_added(self):
         registry = build_default_registry()
         retrieval = [
-            name
-            for name in registry.names
-            if registry.source_kind(name) is not SourceKind.STRUCTURED
+            name for name in registry.names if registry.source_kind(name) in RETRIEVAL_KINDS
         ]
         assert sorted(retrieval) == ["search_knowledge_base", "search_web"]
